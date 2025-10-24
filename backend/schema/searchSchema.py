@@ -1,9 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from .recordSchema import RecordResponse
 
 class SearchQuery(BaseModel):
-    query: str
+    query: Optional[str] = None
+    record_id: Optional[str] = None
     top_k: int = Field(default=5, ge=1, le=20)
 
 class SearchResult(BaseModel):
