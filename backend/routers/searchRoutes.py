@@ -9,10 +9,34 @@ from schema.recordSchema import RecordResponse
 router = APIRouter(prefix="/search", tags=["Search"])
 
 @router.post("/", response_model=list[SearchResult])
-def semanticSearch(search_query: SearchQuery, db: Session = Depends(get_db)):
+def semanticSearch(search_input: SearchQuery, db: Session = Depends(get_db)):
     try:
-        query_emb = embeddingModel.encode(search_query.query).tolist()
-        results = collection.query(query_embeddings =[query_emb], n_results = search_query.top_k)
+        if search_input.query and not search_input.record_id:
+            query_text = search_input.query
+
+        elif search_input.record_id:
+            record = db.query(PatientRecord).get(PatientRecord.id == search_input.record_id)
+            if not record:
+                raise HTTPException(status_code=404, detail="Record Not Found")
+        
+            query_dict = {
+                "chiefComplaint": record.chiefComplaint,
+                "symptoms": record.symptoms,
+                "previousDiagnosis": record.previousDiagnosis,
+                "previousMedications": record.previousMedications,
+            }
+            query_text = " ".join(
+                str(v) for v in query_dict.values() if v is not None
+            )
+
+            if not query_text.strip():
+                raise HTTPException(status_code=400, detail="No searchable data in record")
+
+        else:
+            raise HTTPException(status_code=400, detail="Provide either 'query' or 'record_id")    
+
+        query_emb = embeddingModel.encode(query_text).tolist()
+        results = collection.query(query_embeddings =[query_emb], n_results = search_input.top_k)
         assert results is not None, "Query returned None"
         
         output = []
