@@ -22,3 +22,5 @@ collection = chromaClient.get_or_create_collection(
     name = "patient_records",
     metadata = {"hnsw:space": "cosine"}
 )
+
+fernet = Fernet(ENCRYPTION_KEY.encode())

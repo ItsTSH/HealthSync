@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 class RecordCreate(BaseModel):
     patientName: str
@@ -24,6 +25,7 @@ class RecordUpdate(BaseModel):
 
 class RecordResponse(RecordCreate):
     id: int
+    uuid: UUID
     created_at: datetime
 
     class Config:

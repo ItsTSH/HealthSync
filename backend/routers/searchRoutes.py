@@ -11,11 +11,11 @@ router = APIRouter(prefix="/search", tags=["Search"])
 @router.post("/", response_model=list[SearchResult])
 def semanticSearch(search_input: SearchQuery, db: Session = Depends(get_db)):
     try:
-        if search_input.query and not search_input.record_id:
+        if search_input.query and not search_input.record_uuid:
             query_text = search_input.query
 
-        elif search_input.record_id:
-            record = db.query(PatientRecord).get(PatientRecord.id == search_input.record_id)
+        elif search_input.record_uuid:
+            record = db.query(PatientRecord).get(PatientRecord.uuid == search_input.record_uuid)
             if not record:
                 raise HTTPException(status_code=404, detail="Record Not Found")
         

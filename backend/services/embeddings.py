@@ -13,11 +13,11 @@ def generateEmbeddings(record_data: dict) -> str:
     
     return " | ".join(parts)
 
-def storeEmbeddings(record_id: int, embeddingText: str):
+def storeEmbeddings(record_uuid: str, embeddingText: str):
     embedding = embeddingModel.encode(embeddingText).tolist()
     collection.add(
-        ids = [f"record_{record_id}"],
+        ids = [f"record_{record_uuid}"],
         embeddings = [embedding],
         documents=[embeddingText],
-        metadatas=[{"record_id": record_id}]
+        metadatas=[{"record_id": str(record_uuid)}]
     )
