@@ -6,11 +6,39 @@ import Layout from "../components/Layout";
 import RecordSession from "../components/RecordSession";
 import axios from "axios";
 
-export default function SessionsPage({ theme = "light", toggleTheme }) {
+export default function SessionsPage() {
   const navigate = useNavigate();
   const [isRecording, setIsRecording] = useState(false);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [theme, setTheme] = useState(() => {
+    // Initialize theme from localStorage or default to light
+    return localStorage.getItem("theme") || "light";
+  });
+
+  // Sync theme from localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newTheme = localStorage.getItem("theme") || "light";
+      setTheme(newTheme);
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Check periodically for same-tab updates
+    const interval = setInterval(() => {
+      const currentTheme = localStorage.getItem("theme") || "light";
+      if (currentTheme !== theme) {
+        setTheme(currentTheme);
+      }
+    }, 100);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [theme]);
 
   // 🔹 Fetch patient records from backend
   useEffect(() => {
@@ -61,7 +89,7 @@ export default function SessionsPage({ theme = "light", toggleTheme }) {
   };
 
   return (
-    <Layout theme={theme} toggleTheme={toggleTheme}>
+    <Layout theme={theme}>
       {!isRecording && (
         <div
           className={`${
