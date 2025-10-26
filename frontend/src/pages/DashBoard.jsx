@@ -11,9 +11,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import Sessions from "./session";
 import Navbar from "../components/navbar";
-import Analytics from "./analytics";
 import Settings from "./Settings";
-import Logo from "../components/logo.png";
 import CalendarPage from "../components/calendar";
 import { getAllRecords } from "../api/recordsFetch";
 
@@ -180,13 +178,37 @@ function ActionButton({ icon: Icon, label, theme, onClick }) {
 // ---------- Main Dashboard ----------
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState(() => {
+    // Initialize theme from localStorage or default to light
+    return localStorage.getItem("theme") || "light";
+  });
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+  // Sync theme from localStorage on storage events (for cross-tab syncing)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newTheme = localStorage.getItem("theme") || "light";
+      setTheme(newTheme);
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Also check periodically in case navbar updates it in same tab
+    const interval = setInterval(() => {
+      const currentTheme = localStorage.getItem("theme") || "light";
+      if (currentTheme !== theme) {
+        setTheme(currentTheme);
+      }
+    }, 100);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [theme]);
 
   // Fetch patient records for Recent Sessions
   useEffect(() => {
@@ -265,16 +287,7 @@ export default function Dashboard() {
         } border-b`}
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-6">
-            <img src={Logo} alt="Logo" className="w-40 h-auto" />
-          </div>
-
-          <Navbar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            theme={theme}
-            toggleTheme={toggleTheme}
-          />
+          <Navbar />
         </div>
       </header>
 
@@ -380,7 +393,7 @@ export default function Dashboard() {
                     icon={FileCheck}
                     label="Review Notes"
                     theme={theme}
-                    onClick={() => setActiveTab("sessions")}
+                    onClick={() => navigate("/sessions")}
                   />
                   <ActionButton 
                     icon={Video} 
@@ -400,9 +413,9 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Render other tabs - they handle their own layout including navbar */}
         {activeTab === "calendar" && <CalendarPage theme={theme} />}
         {activeTab === "sessions" && <Sessions theme={theme} />}
-        {activeTab === "analytics" && <Analytics theme={theme} />}
         {activeTab === "settings" && <Settings theme={theme} />}
       </main>
     </div>

@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/authContext";
 import Dashboard from "./pages/DashBoard";
 import Sessions from "./pages/session";
-import Analytics from "./pages/analytics";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -25,10 +24,6 @@ export default function App() {
         <Route
           path="/sessions"
           element={<Sessions theme={theme} toggleTheme={toggleTheme} />}
-        />
-        <Route
-          path="/analytics"
-          element={<Analytics theme={theme} toggleTheme={toggleTheme} />}
         />
         <Route
           path="/settings"

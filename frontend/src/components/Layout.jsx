@@ -1,7 +1,6 @@
 // src/components/Layout.jsx
 import React from "react";
 import Navbar from "./navbar";
-import Logo from "./logo.png";
 
 export default function Layout({ children, theme, toggleTheme }) {
   return (
@@ -9,12 +8,7 @@ export default function Layout({ children, theme, toggleTheme }) {
       
       {/* Header */}
       <header className={`border-b ${theme === "light" ? "bg-white border-gray-200" : "bg-[#030712] border-gray-700"}`}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          {/* Logo */}
-          <div className="flex items-center justify-between mb-6">
-            <img src={Logo} alt="Logo" className="w-40 h-auto" />
-          </div>
-
+          <div className="max-w-7xl mx-auto px-6 py-4">
           {/* Navbar */}
           <Navbar theme={theme} toggleTheme={toggleTheme} />
         </div>
