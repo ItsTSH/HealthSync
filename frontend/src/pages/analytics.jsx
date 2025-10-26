@@ -1,8 +1,10 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { User, Activity, ArrowLeft } from "lucide-react";
+import Navbar from "../components/navbar";
+import Logo from "../components/logo.png";
 
-export default function Analytics({ theme = "light" }) {
+export default function Analytics({ theme = "light", toggleTheme }) {
   const location = useLocation();
   const navigate = useNavigate();
   const patient = location.state?.patient;
@@ -16,7 +18,7 @@ export default function Analytics({ theme = "light" }) {
       >
         <p className="text-lg mb-4">No patient selected.</p>
         <button
-          onClick={() => navigate("/Dashboard")}
+          onClick={() => navigate("/sessions")}
           className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-[#141b2e]"
         >
           Go Back to Sessions
@@ -27,22 +29,37 @@ export default function Analytics({ theme = "light" }) {
 
   return (
     <div
-      className={`min-h-screen px-6 py-8 ${
+      className={`min-h-screen ${
         theme === "light" ? "bg-gray-50 text-gray-900" : "bg-[#030712] text-gray-100"
       }`}
     >
-      <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <header
+        className={`border-b ${
+          theme === "light" ? "bg-white border-gray-200" : "bg-[#030712] border-gray-700"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between mb-6">
+            <img src={Logo} alt="Logo" className="w-40 h-auto" />
+          </div>
+
+          <Navbar theme={theme} toggleTheme={toggleTheme} />
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-3xl mx-auto px-6 py-8">
         <button
-          onClick={() => navigate("/Dashboard")}
+          onClick={() => navigate("/sessions")}
           className={`flex items-center gap-2 mb-6 text-sm font-medium ${
-            theme === "light"
-              ? "text-gray-600 hover:text-gray-800"
-              : "text-gray-400 hover:text-gray-200"
+            theme === "light" ? "text-gray-600 hover:text-gray-800" : "text-gray-400 hover:text-gray-200"
           }`}
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Patients
+          <ArrowLeft className="w-4 h-4" /> Back to Sessions
         </button>
 
+        {/* Patient Analytics */}
         <div
           className={`rounded-xl border p-6 shadow-sm ${
             theme === "light" ? "bg-white border-gray-200" : "bg-[#0b0f1a] border-gray-600"
@@ -53,9 +70,7 @@ export default function Analytics({ theme = "light" }) {
               <User className="w-5 h-5" />
               {patient.name}
             </h2>
-            <span className="text-sm text-gray-500">
-              Last Visit: {patient.lastVisit}
-            </span>
+            <span className="text-sm text-gray-500">Last Visit: {patient.lastVisit}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -73,9 +88,11 @@ export default function Analytics({ theme = "light" }) {
             </div>
             <div>
               <p className="text-sm text-gray-500">Status</p>
-              <p className={`font-medium ${
-                patient.status === "Completed" ? "text-green-600" : "text-yellow-600"
-              }`}>
+              <p
+                className={`font-medium ${
+                  patient.status === "Completed" ? "text-green-600" : "text-yellow-600"
+                }`}
+              >
                 {patient.status}
               </p>
             </div>
@@ -90,11 +107,11 @@ export default function Analytics({ theme = "light" }) {
               <Activity className="w-4 h-4" /> Session Summary
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {`Detailed analytics for ${patient.name} will appear here once integrated with ChromaDB — such as diagnosis trends, consultation frequency, and response summaries.`}
+              Detailed analytics for {patient.name} will appear here once integrated with ChromaDB.
             </p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
