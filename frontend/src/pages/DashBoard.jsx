@@ -15,7 +15,7 @@ import Analytics from "./analytics";
 import Settings from "./Settings";
 import Logo from "../components/logo.png";
 import CalendarPage from "../components/calendar";
-import { getAllRecords } from "../api/recordsFetch"; // ✅ Import your records API
+import { getAllRecords } from "../api/recordsFetch";
 
 // ---------- Metric Card ----------
 function MetricCard({ title, value, change, icon: Icon, theme }) {
@@ -70,14 +70,12 @@ function MetricCard({ title, value, change, icon: Icon, theme }) {
           }`}
         >
           {isPositive ? "+" : ""}
-          {/* {change}% */}
         </span>
         <span
           className={`text-xs ml-2 ${
             theme === "light" ? "text-gray-400" : "text-gray-500"
           }`}
         >
-          {/* vs yesterday */}
         </span>
       </div>
     </div>
@@ -85,7 +83,21 @@ function MetricCard({ title, value, change, icon: Icon, theme }) {
 }
 
 // ---------- Session Item ----------
-function SessionItem({ name, complaint, theme }) {
+function SessionItem({ name, complaint, date, theme }) {
+  const formatDate = (dateString) => {
+    if (!dateString) return "—";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return "—";
+    }
+  };
+
   return (
     <div
       className={`flex items-center justify-between p-4 border-b transition-colors ${
@@ -94,9 +106,9 @@ function SessionItem({ name, complaint, theme }) {
           : "bg-black border-gray-800 hover:bg-gray-900"
       }`}
     >
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 flex-1">
         <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
             theme === "light" ? "bg-gray-200" : "bg-gray-900"
           }`}
         >
@@ -106,22 +118,31 @@ function SessionItem({ name, complaint, theme }) {
             }`}
           />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p
-            className={`font-medium ${
+            className={`font-medium truncate ${
               theme === "light" ? "text-gray-900" : "text-white"
             }`}
           >
-            {name}
+            {name || "Unknown Patient"}
           </p>
           <p
-            className={`text-sm ${
+            className={`text-sm truncate ${
               theme === "light" ? "text-gray-500" : "text-gray-400"
             }`}
           >
-            {complaint || "—"}
+            {complaint || "No complaint recorded"}
           </p>
         </div>
+      </div>
+      <div className="ml-4 flex-shrink-0">
+        <p
+          className={`text-xs ${
+            theme === "light" ? "text-gray-400" : "text-gray-500"
+          }`}
+        >
+          {formatDate(date)}
+        </p>
       </div>
     </div>
   );
@@ -161,27 +182,68 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [theme, setTheme] = useState("light");
   const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
 
-  // ✅ Fetch patient records for Recent Sessions
+  // Fetch patient records for Recent Sessions
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        setError(null);
         const token = localStorage.getItem("accessToken");
+        
+        // if (!token) {
+        //   console.error("No access token found");
+        //   setError("Authentication required");
+        //   setLoading(false);
+        //   return;
+        // }
+
         const data = await getAllRecords(token);
-        setRecords(data);
+        console.log("Fetched records:", data); // Debug log
+        
+        // Handle different possible response structures
+        if (Array.isArray(data)) {
+          setRecords(data);
+        } else if (data && Array.isArray(data.records)) {
+          setRecords(data.records);
+        } else if (data && Array.isArray(data.data)) {
+          setRecords(data.data);
+        } else {
+          console.warn("Unexpected data structure:", data);
+          setRecords([]);
+        }
       } catch (error) {
         console.error("Error fetching records:", error);
+        setError("Failed to load records");
+        setRecords([]);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    
+    if (activeTab === "dashboard") {
+      fetchData();
+    }
+  }, [activeTab]);
+
+  // Calculate dynamic metrics from records
+  const getTodaySessionsCount = () => {
+    const today = new Date().toDateString();
+    return records.filter(r => {
+      if (!r.created_at && !r.createdAt && !r.date) return false;
+      const recordDate = new Date(r.created_at || r.createdAt || r.date);
+      return recordDate.toDateString() === today;
+    }).length;
+  };
 
   const metrics = [
-    { title: "Today's Sessions", value: 0,  icon: Calendar },
-    { title: "Completed Notes", value: 8, icon: FileCheck },
+    { title: "Today's Sessions", value: getTodaySessionsCount(), icon: Calendar },
+    { title: "Total Records", value: records.length, icon: FileCheck },
     { title: "Time Saved Today", value: "18 mins", icon: Clock },
     { title: "Pending Reviews", value: 0, icon: AlertCircle },
   ];
@@ -229,7 +291,7 @@ export default function Dashboard() {
 
             {/* Bottom Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* ✅ Recent Sessions (dynamic) */}
+              {/* Recent Sessions (dynamic) */}
               <div className="lg:col-span-2">
                 <div
                   className={`${
@@ -246,27 +308,53 @@ export default function Dashboard() {
                     <h2 className="text-lg font-semibold">Recent Sessions</h2>
                   </div>
                   <div>
-                    {records.length > 0 ? (
+                    {loading ? (
+                      <div className="p-6 text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                        <p className={`mt-2 text-sm ${
+                          theme === "light" ? "text-gray-500" : "text-gray-400"
+                        }`}>
+                          Loading sessions...
+                        </p>
+                      </div>
+                    ) : error ? (
+                      <div className="p-6 text-center">
+                        <AlertCircle className={`mx-auto h-8 w-8 mb-2 ${
+                          theme === "light" ? "text-red-500" : "text-red-400"
+                        }`} />
+                        <p className={`text-sm ${
+                          theme === "light" ? "text-red-600" : "text-red-400"
+                        }`}>
+                          {error}
+                        </p>
+                      </div>
+                    ) : records.length > 0 ? (
                       records
                         .slice(0, 5) // Show top 5
-                        .map((r, i) => (
+                        .map((record, i) => (
                           <SessionItem
-                            key={i}
-                            name={r.patient_name}
-                            complaint={r.chief_complaint}
+                            key={record.id || i}
+                            name={record.patient_name || record.patientName}
+                            complaint={record.chief_complaint || record.chiefComplaint}
+                            date={record.created_at || record.createdAt || record.date}
                             theme={theme}
                           />
                         ))
                     ) : (
-                      <p
-                        className={`p-6 text-center text-sm ${
-                          theme === "light"
-                            ? "text-gray-500"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        No recent sessions found.
-                      </p>
+                      <div className="p-6 text-center">
+                        <FileCheck className={`mx-auto h-8 w-8 mb-2 ${
+                          theme === "light" ? "text-gray-400" : "text-gray-600"
+                        }`} />
+                        <p
+                          className={`text-sm ${
+                            theme === "light"
+                              ? "text-gray-500"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          No recent sessions found. Start recording to see sessions here.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -292,9 +380,14 @@ export default function Dashboard() {
                     icon={FileCheck}
                     label="Review Notes"
                     theme={theme}
-                    onClick={() => navigate("/sessions")}
+                    onClick={() => setActiveTab("sessions")}
                   />
-                  <ActionButton icon={Video} label="Schedule Meeting" theme={theme} />
+                  <ActionButton 
+                    icon={Video} 
+                    label="Schedule Meeting" 
+                    theme={theme}
+                    onClick={() => alert("Meeting scheduling coming soon!")}
+                  />
                   <ActionButton
                     icon={Calendar}
                     label="View Calendar"
