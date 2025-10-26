@@ -14,7 +14,6 @@ import Navbar from "../components/navbar";
 import Analytics from "./analytics";
 import Settings from "./Settings";
 import Logo from "../components/logo.png";
-import { useNavigate } from "react-router-dom";
 import CalendarPage from "../components/calendar";
 
 // Simple Metric Card
@@ -92,17 +91,21 @@ function SessionItem({ name, time, type, duration, theme }) {
   );
 }
 
-// Quick Action Button
 function ActionButton({ icon: Icon, label, theme, onClick }) {
   return (
-    <button className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
-      theme === "light"
-        ? "bg-white border-gray-200 hover:border-gray-300"
-        : "bg-black border-gray-800 hover:border-gray-700"
-    }`}>
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-        theme === "light" ? "bg-gray-900" : "bg-gray-800"
-      }`}>
+    <button
+      onClick={onClick} // ✅ add this line
+      className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
+        theme === "light"
+          ? "bg-white border-gray-200 hover:border-gray-300"
+          : "bg-black border-gray-800 hover:border-gray-700"
+      }`}
+    >
+      <div
+        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          theme === "light" ? "bg-gray-900" : "bg-gray-800"
+        }`}
+      >
         <Icon className="w-5 h-5 text-white" />
       </div>
       <span
@@ -115,6 +118,7 @@ function ActionButton({ icon: Icon, label, theme, onClick }) {
     </button>
   );
 }
+
 
 
 // Main Dashboard Component
