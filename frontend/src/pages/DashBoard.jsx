@@ -94,7 +94,7 @@ function SessionItem({ name, time, type, duration, theme }) {
 // Quick Action Button
 function ActionButton({ icon: Icon, label, theme, onClick }) {
   return (
-    <button className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
+    <button onclick={onClick} className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
       theme === "light"
         ? "bg-white border-gray-200 hover:border-gray-300"
         : "bg-black border-gray-800 hover:border-gray-700"
