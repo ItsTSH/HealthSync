@@ -13,6 +13,8 @@ import Navbar from "../components/navbar";
 import Analytics from "./analytics";
 import Settings from "./Settings";
 import Logo from "../components/logo.png";
+import { useNavigate } from "react-router-dom";
+import CalendarPage from "../components/calendar";
 
 // Simple Metric Card
 function MetricCard({ title, value, change, icon: Icon, theme }) {
@@ -90,24 +92,34 @@ function SessionItem({ name, time, type, duration, theme }) {
 }
 
 // Quick Action Button
-function ActionButton({ icon: Icon, label, theme }) {
+function ActionButton({ icon: Icon, label, theme, onClick }) {
   return (
-    <button className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
-      theme === "light"
-        ? "bg-white border-gray-200 hover:border-gray-300"
-        : "bg-black border-gray-800 hover:border-gray-700"
-    }`}>
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-        theme === "light" ? "bg-gray-900" : "bg-gray-800"
-      }`}>
+    <button
+      onClick={onClick}
+      className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
+        theme === "light"
+          ? "bg-white border-gray-200 hover:border-gray-300"
+          : "bg-black border-gray-800 hover:border-gray-700"
+      }`}
+    >
+      <div
+        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          theme === "light" ? "bg-gray-900" : "bg-gray-800"
+        }`}
+      >
         <Icon className="w-5 h-5 text-white" />
       </div>
-      <span className={`font-medium ${theme === "light" ? "text-gray-900" : "text-white"}`}>
+      <span
+        className={`font-medium ${
+          theme === "light" ? "text-gray-900" : "text-white"
+        }`}
+      >
         {label}
       </span>
     </button>
   );
 }
+
 
 // Main Dashboard Component
 export default function Dashboard() {
@@ -185,13 +197,19 @@ export default function Dashboard() {
                 <ActionButton icon={Plus} label="Start New Session" theme={theme} />
                 <ActionButton icon={FileCheck} label="Review Notes" theme={theme} />
                 <ActionButton icon={Video} label="Schedule Meeting" theme={theme} />
-                <ActionButton icon={Calendar} label="View Calendar" theme={theme} />
+                <ActionButton
+                         icon={Calendar}
+                          label="View Calendar"
+                          theme={theme}
+                          onClick={() => setActiveTab("calendar")}
+                />
               </div>
             </div>
           </div>
         </>
       )}
-
+      
+      {activeTab === "calendar" && <CalendarPage theme={theme} />}
       {activeTab === "sessions" && <Sessions theme={theme} />}
       {activeTab === "analytics" && <Analytics theme={theme} />}
       {activeTab === "settings" && <Settings theme={theme} />}

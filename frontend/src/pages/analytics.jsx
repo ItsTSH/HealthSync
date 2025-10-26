@@ -33,7 +33,7 @@ export default function Analytics({ theme = "light" }) {
     >
       <div className="max-w-3xl mx-auto">
         <button
-          onClick={() => navigate("/sessions")}
+          onClick={() => navigate("/Dashboard")}
           className={`flex items-center gap-2 mb-6 text-sm font-medium ${
             theme === "light"
               ? "text-gray-600 hover:text-gray-800"
