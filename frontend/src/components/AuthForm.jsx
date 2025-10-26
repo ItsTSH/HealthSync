@@ -11,7 +11,7 @@ export default function AuthForm() {
   return (
     <div className="w-full max-w-md p-8 rounded-2xl bg-white shadow-md border border-gray-200">
       <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
-        Sign in to HealthSync
+        Log in to HealthSync
       </h2>
 
       <form className="space-y-4" onSubmit={handleSubmit}>

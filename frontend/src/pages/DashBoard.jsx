@@ -14,7 +14,6 @@ import Navbar from "../components/navbar";
 import Analytics from "./analytics";
 import Settings from "./Settings";
 import Logo from "../components/logo.png";
-import { useNavigate } from "react-router-dom";
 import CalendarPage from "../components/calendar";
 
 // Simple Metric Card
