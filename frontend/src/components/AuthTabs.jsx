@@ -6,10 +6,10 @@ export default function AuthTabs() {
   const isRegister = pathname === "/register";
 
   return (
-    <div className="flex space-x-8 mb-8 border-b border-gray-300 pb-2 justify-center">
+    <div className="flex space-x-8 mb-6 border-b border-gray-300 pb-2 w-full max-w-md">
       <Link
         to="/"
-        className={`text-lg font-medium transition-all ${
+        className={`flex-1 text-center text-lg font-medium transition-all pb-2 ${
           isLogin
             ? "text-gray-900 border-b-2 border-gray-700"
             : "text-gray-500 hover:text-gray-800"
@@ -19,7 +19,7 @@ export default function AuthTabs() {
       </Link>
       <Link
         to="/register"
-        className={`text-lg font-medium transition-all ${
+        className={`flex-1 text-center text-lg font-medium transition-all pb-2 ${
           isRegister
             ? "text-gray-900 border-b-2 border-gray-700"
             : "text-gray-500 hover:text-gray-800"
