@@ -24,7 +24,6 @@ def extractMetadata(transcription: str) -> dict:
         contents=transcription)
     
     text = response.text
-    text = response.text
     print(f"Response text type: {type(text)}")
     print(f"Response text value: {text}")
     if text is None:
