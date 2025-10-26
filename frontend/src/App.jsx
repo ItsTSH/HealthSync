@@ -5,10 +5,12 @@ import Dashboard from './pages/DashBoard'; // match your actual filename
 import Session from './pages/session';     // lowercase 's' matches your file
 import Analytics from './pages/analytics';
 import RecordPage from './pages/RecordPage';
+import { AuthProvider } from './context/authContext';
 
 function App() {
   return (
-    <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -18,6 +20,7 @@ function App() {
         <Route path="/record" element={<RecordPage />} />
       </Routes>
     </BrowserRouter>
+    </AuthProvider>
   );
 }
 
