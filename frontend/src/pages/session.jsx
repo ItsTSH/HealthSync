@@ -1,22 +1,25 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 
 export default function SessionsPage({ theme = 'light' }) {
+  const navigate = useNavigate();
+
   const patients = [
     { name: 'John Martinez', age: 45, gender: 'Male', lastVisit: 'Oct 25, 2025', condition: 'Annual Checkup', status: 'Completed' },
     { name: 'Emily Chan', age: 32, gender: 'Female', lastVisit: 'Oct 25, 2025', condition: 'Follow-up Visit', status: 'Completed' },
     { name: 'Michael Brown', age: 58, gender: 'Male', lastVisit: 'Oct 25, 2025', condition: 'Consultation', status: 'Completed' },
     { name: 'Lisa Anderson', age: 28, gender: 'Female', lastVisit: 'Oct 25, 2025', condition: 'Initial Assessment', status: 'In Progress' },
     { name: 'David Kim', age: 41, gender: 'Male', lastVisit: 'Oct 24, 2025', condition: 'Routine Check', status: 'Completed' },
-    { name: 'Sarah Johnson', age: 36, gender: 'Female', lastVisit: 'Oct 24, 2025', condition: 'Follow-up', status: 'Completed' },
-    { name: 'Robert Lee', age: 52, gender: 'Male', lastVisit: 'Oct 23, 2025', condition: 'Physical Exam', status: 'Completed' },
-    { name: 'Maria Garcia', age: 39, gender: 'Female', lastVisit: 'Oct 23, 2025', condition: 'Consultation', status: 'Completed' },
   ];
+
+  const handlePatientClick = (patient) => {
+    navigate('/analytics', { state: { patient } });
+  };
 
   return (
     <div className={`${theme === 'light' ? 'bg-gray-50 text-gray-900' : 'bg-[#030712] text-gray-100'} min-h-screen p-6`}>
       <div className={`${theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#0b0f1a] border-gray-600'} rounded-lg border`}>
-        {/* Header */}
         <div className={`px-6 py-4 border-b flex items-center justify-between ${
           theme === 'light' ? 'border-gray-200' : 'border-gray-600'
         }`}>
@@ -32,7 +35,6 @@ export default function SessionsPage({ theme = 'light' }) {
           />
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className={`${theme === 'light' ? 'bg-gray-50 border-gray-200' : 'bg-[#0b0f1a] border-gray-600'} border-b`}>
@@ -54,6 +56,7 @@ export default function SessionsPage({ theme = 'light' }) {
               {patients.map((patient, i) => (
                 <tr
                   key={i}
+                  onClick={() => handlePatientClick(patient)}
                   className={`hover:cursor-pointer ${
                     theme === 'light' ? 'hover:bg-gray-50' : 'hover:bg-[#141b2e]'
                   }`}
