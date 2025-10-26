@@ -33,3 +33,13 @@ class PatientRecord(Base):
     extractedNotes = Column(Text)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key = True, index=True)
+    uuid = Column(UUID(as_uuid =  True), default=uuid.uuid4, unique=True, nullable=False)
+    username= Column(String(50), unique=True, nullable=False)
+    email_id = Column(String(100), unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)

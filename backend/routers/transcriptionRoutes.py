@@ -1,13 +1,15 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 import tempfile, os, json
 from schema.transcriptionSchema import TranscriptionResponse
+from db.models import User
+from services.authService import getCurrentUser
 from services.transcription import transcribeAudio
 from services.extraction import extractMetadata
 
 router = APIRouter(prefix="/transcribe", tags=["Transcription"])
 
 @router.post("/", response_model = TranscriptionResponse)
-async def transcribeEndpoint(audio_file: UploadFile = File(...)):
+async def transcribeEndpoint(audio_file: UploadFile = File(...), current_user: User = Depends(getCurrentUser)):
     try:
         if not audio_file:
             raise HTTPException(status_code=500, detail="No Audio File Found")
