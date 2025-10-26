@@ -8,11 +8,14 @@ import {
   Video,
   Plus
 } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // ✅ added for navigation
 import Sessions from "./session";
 import Navbar from "../components/navbar";
 import Analytics from "./analytics";
 import Settings from "./Settings";
 import Logo from "../components/logo.png";
+import { useNavigate } from "react-router-dom";
+import CalendarPage from "../components/calendar";
 
 // Simple Metric Card
 function MetricCard({ title, value, change, icon: Icon, theme }) {
@@ -90,7 +93,7 @@ function SessionItem({ name, time, type, duration, theme }) {
 }
 
 // Quick Action Button
-function ActionButton({ icon: Icon, label, theme }) {
+function ActionButton({ icon: Icon, label, theme, onClick }) {
   return (
     <button className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
       theme === "light"
@@ -102,17 +105,23 @@ function ActionButton({ icon: Icon, label, theme }) {
       }`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
-      <span className={`font-medium ${theme === "light" ? "text-gray-900" : "text-white"}`}>
+      <span
+        className={`font-medium ${
+          theme === "light" ? "text-gray-900" : "text-white"
+        }`}
+      >
         {label}
       </span>
     </button>
   );
 }
 
+
 // Main Dashboard Component
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [theme, setTheme] = useState("light"); // light/dark
+  const navigate = useNavigate(); // ✅ added navigation hook
 
   const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
 
@@ -182,16 +191,27 @@ export default function Dashboard() {
             <div>
               <div className={`${theme === "light" ? "bg-white border-gray-200" : "bg-[#0b0f1a] border-gray-700"} rounded-lg border p-6 space-y-3`}>
                 <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-                <ActionButton icon={Plus} label="Start New Session" theme={theme} />
+                <ActionButton
+                  icon={Plus}
+                  label="Start New Session"
+                  theme={theme}
+                  onClick={() => navigate("/record")} // ✅ Opens Record Page
+                />
                 <ActionButton icon={FileCheck} label="Review Notes" theme={theme} />
                 <ActionButton icon={Video} label="Schedule Meeting" theme={theme} />
-                <ActionButton icon={Calendar} label="View Calendar" theme={theme} />
+                <ActionButton
+                         icon={Calendar}
+                          label="View Calendar"
+                          theme={theme}
+                          onClick={() => setActiveTab("calendar")}
+                />
               </div>
             </div>
           </div>
         </>
       )}
-
+      
+      {activeTab === "calendar" && <CalendarPage theme={theme} />}
       {activeTab === "sessions" && <Sessions theme={theme} />}
       {activeTab === "analytics" && <Analytics theme={theme} />}
       {activeTab === "settings" && <Settings theme={theme} />}

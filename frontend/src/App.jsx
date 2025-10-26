@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/DashBoard'; // match your actual filename
 import Session from './pages/session';     // lowercase 's' matches your file
 import Analytics from './pages/analytics';
+import RecordPage from './pages/RecordPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/session" element={<Session />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/record" element={<RecordPage />} />
       </Routes>
     </BrowserRouter>
   );

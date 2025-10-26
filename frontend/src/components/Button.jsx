@@ -2,7 +2,7 @@ export default function Button({ text }) {
   return (
     <button
       type="submit"
-      className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-medium"
+      className="w-full py-2.5 mt-2 bg-gray-800 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
     >
       {text}
     </button>

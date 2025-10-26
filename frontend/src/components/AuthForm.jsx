@@ -1,34 +1,41 @@
-import InputField from './InputField';
-import Button from './Button';
-import { Link } from 'react-router-dom';
+import { Mail, Lock } from "lucide-react";
+import InputField from "./InputField";
+import Button from "./Button";
+import { Link } from "react-router-dom";
 
 export default function AuthForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
-    // TODO: Add login logic here
-    console.log('Login submitted');
   };
 
   return (
-    <div className="w-full max-w-md">
-      <h2 className="text-2xl font-semibold mb-6">Sign in to your account</h2>
+    <div className="w-full max-w-md p-8 rounded-2xl bg-white shadow-md border border-gray-200">
+      <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+        Sign in to HealthSync
+      </h2>
+
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <InputField label="Email Address" type="email" />
-        <InputField label="Password" type="password" />
-        <div className="flex items-center justify-between text-sm">
+        <InputField label="Email Address" type="email" icon={<Mail />} />
+        <InputField label="Password" type="password" icon={<Lock />} />
+
+        <div className="flex items-center justify-between text-sm text-gray-600">
           <label className="flex items-center">
-            <input type="checkbox" className="mr-2" />
+            <input type="checkbox" className="mr-2 accent-gray-700" />
             Remember me
           </label>
-          <Link to="#" className="text-blue-600 hover:underline">Forgot password?</Link>
+          <Link to="#" className="text-gray-700 hover:underline">
+            Forgot password?
+          </Link>
         </div>
+
         <Button text="Sign In" />
       </form>
+
       <p className="mt-6 text-sm text-gray-600 text-center">
-        Don’t have an account? <Link to="/register" className="text-blue-600 hover:underline">Create one</Link>
-      </p>
-      <p className="mt-2 text-xs text-gray-400 text-center">
-        By signing in, you agree to our <Link to="#" className="underline">Terms of Service</Link> and <Link to="#" className="underline">Privacy Policy</Link>.
+        Don’t have an account?{" "}
+        <Link to="/register" className="text-gray-800 font-medium hover:underline">
+          Create one
+        </Link>
       </p>
     </div>
   );
