@@ -91,7 +91,6 @@ function SessionItem({ name, time, type, duration, theme }) {
   );
 }
 
-// Quick Action Button
 function ActionButton({ icon: Icon, label, theme, onClick }) {
   return (
     <button onClick={onClick} className={`flex items-center space-x-3 w-full p-4 border rounded-lg hover:shadow-sm transition-all ${
@@ -102,6 +101,7 @@ function ActionButton({ icon: Icon, label, theme, onClick }) {
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
         theme === "light" ? "bg-gray-900" : "bg-gray-800"
       }`}>
+
         <Icon className="w-5 h-5 text-white" />
       </div>
       <span
@@ -114,6 +114,7 @@ function ActionButton({ icon: Icon, label, theme, onClick }) {
     </button>
   );
 }
+
 
 
 // Main Dashboard Component

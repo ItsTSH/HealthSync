@@ -1,27 +1,41 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/DashBoard'; // match your actual filename
-import Session from './pages/session';     // lowercase 's' matches your file
-import Analytics from './pages/analytics';
-import RecordPage from './pages/RecordPage';
-import { AuthProvider } from './context/authContext';
+import React, { useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-function App() {
+import Dashboard from "./pages/dashboard";
+import Sessions from "./pages/session";
+import Analytics from "./pages/analytics";
+import Settings from "./pages/Settings";
+
+export default function App() {
+  const [theme, setTheme] = useState("light");
+
+  const toggleTheme = () =>
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/session" element={<Session />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/record" element={<RecordPage />} />
+        <Route
+          path="/dashboard"
+          element={<Dashboard theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/sessions"
+          element={<Sessions theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/analytics"
+          element={<Analytics theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/settings"
+          element={<Settings theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="*"
+          element={<Dashboard theme={theme} toggleTheme={toggleTheme} />}
+        />
       </Routes>
-    </BrowserRouter>
-    </AuthProvider>
+    </Router>
   );
 }
-
-export default App;
