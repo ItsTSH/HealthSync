@@ -1,21 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from schema.searchSchema import SearchQuery, SearchResult
-from db.models import PatientRecord
+from db.models import PatientRecord, User
+from services.authService import getCurrentUser
 from core.dependencies import get_db
+from core.security import decryptValues
 from core.initialization import embeddingModel, collection
 from schema.recordSchema import RecordResponse
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
+# Helper to decrypt record before sending to frontend
+def decrypt_record(record: PatientRecord) -> PatientRecord:
+    record.patientName = decryptValues(record.patientName)
+    record.gender = decryptValues(record.gender)
+    return record
+
 @router.post("/", response_model=list[SearchResult])
-def semanticSearch(search_input: SearchQuery, db: Session = Depends(get_db)):
+def semanticSearch(search_input: SearchQuery, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
     try:
         if search_input.query and not search_input.record_uuid:
             query_text = search_input.query
 
         elif search_input.record_uuid:
-            record = db.query(PatientRecord).get(PatientRecord.uuid == search_input.record_uuid)
+            record = db.query(PatientRecord).filter(PatientRecord.uuid == search_input.record_uuid).first()
             if not record:
                 raise HTTPException(status_code=404, detail="Record Not Found")
         
@@ -40,13 +48,16 @@ def semanticSearch(search_input: SearchQuery, db: Session = Depends(get_db)):
         assert results is not None, "Query returned None"
         
         output = []
+        if not results["ids"] or not results["ids"][0]:
+            return []  # no results
 
         for i, record_id_str in enumerate(results["ids"][0]):
-            record_id = int(record_id_str.split("_")[1])
-            record = db.query(PatientRecord).get(record_id)
+            record_uuid = record_id_str.split("_")[1]
+            record = db.query(PatientRecord).filter(PatientRecord.uuid == record_uuid).first()
             if record:
+                decrypted_record = decrypt_record(record)
                 output.append(SearchResult(
-                    record = RecordResponse.model_validate(record),
+                    record = RecordResponse.model_validate(decrypted_record),
                     similarityScore=1-results["distances"][0][i],   # type: ignore
                     matchedText = results["documents"][0][i]    #type:ignore
                 ))
