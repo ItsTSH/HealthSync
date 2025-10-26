@@ -8,20 +8,52 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Check if user is authenticated on mound
+    // Check if user is authenticated on mount
     useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             const token = authAPI.getAccessToken();
+            console.log("AuthContext init - token exists:", !!token);
             if (token) {
-                setIsAuthenticated(true);
+                const authenticated = authAPI.isAuthenticated();
+                console.log("AuthContext init - token valid:", authenticated);
+                setIsAuthenticated(authenticated);
+                
+                // If token exists but is expired, try to refresh
+                if (!authenticated) {
+                    const refreshed = await authAPI.refreshToken();
+                    console.log("AuthContext init - refresh result:", refreshed);
+                    setIsAuthenticated(refreshed);
+                }
+            } else {
+                // No token found - user is NOT authenticated
+                setIsAuthenticated(false);
             }
             setLoading(false);
         };
         checkAuth();
     }, []);
 
+    // Periodic token validation (every 5 minutes)
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const interval = setInterval(async () => {
+            const authenticated = authAPI.isAuthenticated();
+            if (!authenticated) {
+                // Token expired, try to refresh
+                const refreshed = await authAPI.refreshToken();
+                if (!refreshed) {
+                    // Refresh failed, log out
+                    logout();
+                }
+            }
+        }, 5 * 60 * 1000); // Check every 5 minutes
+
+        return () => clearInterval(interval);
+    }, [isAuthenticated]);
+
     const login = async (credentials) => {
-        try{
+        try {
             const data = await authAPI.login(credentials);
             setIsAuthenticated(true);
             return data;
@@ -31,7 +63,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const signup = async (userData) => {
-        try{
+        try {
             const data = await authAPI.signup(userData);
             return data;
         } catch (error) {
@@ -41,8 +73,8 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         authAPI.logout();
-        setUser(null);
         setIsAuthenticated(false);
+        setUser(null);
     };
 
     const value = {

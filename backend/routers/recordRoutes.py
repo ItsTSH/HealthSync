@@ -19,7 +19,7 @@ def decrypt_record(record: PatientRecord) -> PatientRecord:
     return record
 
 @router.post("/", response_model=RecordResponse)
-def create_record(record: RecordCreate, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
+def create_record(record: RecordCreate, db: Session = Depends(get_db)):
     try:
         record_uuid = uuid4()
         # Encrypt sensitive fields
@@ -47,7 +47,7 @@ def create_record(record: RecordCreate, current_user: User = Depends(getCurrentU
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[RecordResponse])
-def getAllRecords(db: Session = Depends(get_db), current_user: User = Depends(getCurrentUser), skip: int=0, limit: int = 10):
+def getAllRecords(db: Session = Depends(get_db), skip: int=0, limit: int = 10):
     try:
         records = db.query(PatientRecord).offset(skip).limit(limit).all()
         return [decrypt_record(r) for r in records]
@@ -56,7 +56,7 @@ def getAllRecords(db: Session = Depends(get_db), current_user: User = Depends(ge
     
 
 @router.get("/{record_uuid}", response_model=RecordResponse)
-def getRecordByID(record_uuid: str, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
+def getRecordByID(record_uuid: str, db: Session = Depends(get_db)):
     try:
         record = db.query(PatientRecord).filter(PatientRecord.uuid == record_uuid).first()
         if not record:
@@ -67,7 +67,7 @@ def getRecordByID(record_uuid: str, current_user: User = Depends(getCurrentUser)
     
 
 @router.put("/{record_uuid}", response_model=RecordResponse)
-def updateRecord(record_uuid: str, record_update: RecordUpdate, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
+def updateRecord(record_uuid: str, record_update: RecordUpdate, db: Session = Depends(get_db)):
     try:
         db_record = db.query(PatientRecord).filter(PatientRecord.uuid == record_uuid).first()
         if not db_record:
@@ -92,7 +92,7 @@ def updateRecord(record_uuid: str, record_update: RecordUpdate, current_user: Us
         raise HTTPException(status_code=500, detail = str(e))
     
 @router.delete("/{record_uuid}", status_code=200)
-def deleteRecord(record_uuid: str, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
+def deleteRecord(record_uuid: str, db: Session = Depends(get_db)):
     try:
         db_record = db.query(PatientRecord).filter(PatientRecord.uuid == record_uuid).first()
 

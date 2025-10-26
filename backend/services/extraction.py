@@ -5,14 +5,15 @@ from google.genai import types
 def extractMetadata(transcription: str) -> dict:
     instruction = """
     You are a medical transcription assistant.
-    Extract these details as JSON:
-    - patient_name
+    Extract these details as JSON. DO NOT CHANGE THE STRUCTURE OR LABELS OF THE JSON IN ANY WAY:
+    - patientName
     - age
     - gender
-    - chief_complaint
-    - previous_diagnosis
-    - previous_medications
-    - other_info
+    - chiefComplaint
+    - symptoms
+    - previousDiagnosis
+    - previousMedications
+    - otherInfo
     """
 
     response = geminiClient.models.generate_content(

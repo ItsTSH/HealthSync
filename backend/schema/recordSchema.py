@@ -5,7 +5,7 @@ from uuid import UUID
 
 class RecordCreate(BaseModel):
     patientName: str
-    age: int
+    age: Optional[int] = 0
     gender: str
     chiefComplaint: str
     symptoms: Optional[str] = None

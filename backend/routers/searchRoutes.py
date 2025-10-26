@@ -17,7 +17,7 @@ def decrypt_record(record: PatientRecord) -> PatientRecord:
     return record
 
 @router.post("/", response_model=list[SearchResult])
-def semanticSearch(search_input: SearchQuery, current_user: User = Depends(getCurrentUser), db: Session = Depends(get_db)):
+def semanticSearch(search_input: SearchQuery, db: Session = Depends(get_db)):
     try:
         if search_input.query and not search_input.record_uuid:
             query_text = search_input.query

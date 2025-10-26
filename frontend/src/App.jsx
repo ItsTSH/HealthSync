@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
-import Dashboard from "./pages/dashboard";
+import { AuthProvider } from "./context/authContext";
+import Dashboard from "./pages/DashBoard";
 import Sessions from "./pages/session";
 import Analytics from "./pages/analytics";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 export default function App() {
   const [theme, setTheme] = useState("light");
@@ -13,7 +15,8 @@ export default function App() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
   return (
-    <Router>
+    <AuthProvider>
+      <Router>
       <Routes>
         <Route
           path="/dashboard"
@@ -32,10 +35,19 @@ export default function App() {
           element={<Settings theme={theme} toggleTheme={toggleTheme} />}
         />
         <Route
+          path="/login"
+          element={<Login theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/register"
+          element={<Register theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
           path="*"
-          element={<Dashboard theme={theme} toggleTheme={toggleTheme} />}
+          element={<Login theme={theme} toggleTheme={toggleTheme} />}
         />
       </Routes>
     </Router>
+    </AuthProvider>
   );
 }

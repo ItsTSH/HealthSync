@@ -10,7 +10,7 @@ import re
 router = APIRouter(prefix="/transcribe", tags=["Transcription"])
 
 @router.post("/", response_model=TranscriptionResponse)
-async def transcribeEndpoint(audio_file: UploadFile = File(...), current_user: User = Depends(getCurrentUser)):
+async def transcribeEndpoint(audio_file: UploadFile = File(...)):
     try:
         if not audio_file:
             raise HTTPException(status_code=500, detail="No Audio File Found")
@@ -48,10 +48,20 @@ async def transcribeEndpoint(audio_file: UploadFile = File(...), current_user: U
                 age_match = re.search(r'\d+', str(extracted['age']))
                 if age_match:
                     extracted['age'] = int(age_match.group(0))
-            
+            # Normalize keys and return as dict, not string
+            extracted_normalized = {
+                "patientName": extracted.get("patientName"),
+                "age": extracted.get("age"),
+                "gender": extracted.get("gender"),
+                "chiefComplaint": extracted.get("chiefComplaint"),
+                "symptoms": extracted.get("symptoms"),
+                "previousDiagnosis": extracted.get("previousDiagnosis"),
+                "previousMedications": extracted.get("previousMedications"),
+                "otherInfo": extracted.get("otherInfo"),
+            }
             return TranscriptionResponse(
-                transcription=clean_transcription,  # Original, unmodified
-                extractedMetadata=json.dumps(extracted, indent=2)
+                # transcription=clean_transcription,  # Original, unmodified
+                extractedMetadata=extracted_normalized
             )
         finally:
             os.unlink(path)
