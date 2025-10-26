@@ -16,14 +16,19 @@ def extractMetadata(transcription: str) -> dict:
     """
 
     response = geminiClient.models.generate_content(
-        model = "gemini-1.5-flash",
+        model = "gemini-2.5-flash",
         config = types.GenerateContentConfig(
             system_instruction = instruction,
-            response_mime_type= "applications/json"
+            response_mime_type= "application/json"
         ),
         contents=transcription)
     
     text = response.text
+    text = response.text
+    print(f"Response text type: {type(text)}")
+    print(f"Response text value: {text}")
+    if text is None:
+        raise ValueError("No text content in response")
     if text is None:
         raise ValueError("No text content in response")
     
