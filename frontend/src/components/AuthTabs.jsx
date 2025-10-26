@@ -15,7 +15,7 @@ export default function AuthTabs() {
             : "text-gray-500 hover:text-gray-800"
         }`}
       >
-        Sign In
+        Log In
       </Link>
       <Link
         to="/register"

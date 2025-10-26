@@ -19,7 +19,7 @@ export default function Register() {
         <h2 className="text-2xl font-semibold text-gray-900 text-center mb-6">
           Create your HealthSync Account
         </h2>
-        <InputField label="Full Name" type="text" icon={<User />} />
+        <InputField label="Username" type="text" icon={<User />} />
         <InputField label="Email Address" type="email" icon={<Mail />} />
         <InputField label="Password" type="password" icon={<Lock />} />
         <Button text="Create Account" />
