@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useAuth } from "../context/authContext";
 
-export default function Settings({ theme = "light", toggleTheme }) {
+export default function Settings() {
   const navigate = useNavigate();
   const { logout } = useAuth();
   
@@ -12,6 +12,32 @@ export default function Settings({ theme = "light", toggleTheme }) {
   const [autoSave, setAutoSave] = useState(true);
   const [language, setLanguage] = useState("en");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("theme") || "light";
+  });
+
+  // Sync theme from localStorage - check every 50ms
+  useEffect(() => {
+    const syncTheme = () => {
+      const currentTheme = localStorage.getItem("theme") || "light";
+      setTheme(currentTheme);
+    };
+
+    // Initial sync
+    syncTheme();
+
+    // Poll for changes
+    const interval = setInterval(syncTheme, 50);
+    
+    // Listen for storage events (cross-tab)
+    window.addEventListener("storage", syncTheme);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", syncTheme);
+    };
+  }, []);
 
   const handleProfileEdit = () => alert("Profile Edit clicked!");
   
@@ -33,7 +59,7 @@ export default function Settings({ theme = "light", toggleTheme }) {
 
   return (
     <>
-      <Layout theme={theme} toggleTheme={toggleTheme}>
+      <Layout theme={theme}>
         <div className={`rounded-lg border p-8 space-y-8 transition-colors ${
           isDark
             ? "bg-[#0b0f1a] border-gray-600 text-gray-100"

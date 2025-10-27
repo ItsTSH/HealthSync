@@ -1,13 +1,14 @@
 // src/pages/session.jsx
 import React, { useState, useEffect } from "react";
 import { User, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import RecordSession from "../components/RecordSession";
 import axios from "axios";
 
 export default function SessionsPage() {
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ ADDED: To handle refresh from Notes page
   const [isRecording, setIsRecording] = useState(false);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,37 +42,77 @@ export default function SessionsPage() {
   }, [theme]);
 
   // 🔹 Fetch patient records from backend
+  // ✅ CHANGED: Moved outside useEffect so it can be called from multiple places
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:8000/records", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // ✅ CRITICAL CHANGE: Include record_uuid in formatted data
+      const formatted = res.data.map((p) => ({
+        // ⚠️ IMPORTANT: Add record_uuid from backend
+        // Adjust the field name based on what your API returns (uuid, record_uuid, _id, etc.)
+        record_uuid: p.uuid || p.record_uuid || p.id,
+        
+        // ✅ CHANGED: Use patientName instead of name for consistency with Notes.jsx
+        patientName: p.patientName || "NA",
+        age: p.age || "NA",
+        gender: p.gender || "NA",
+        lastVisit: p.lastVisit || "NA",
+        condition: p.chiefComplaint || "NA",
+        status: p.status || "Completed",
+        
+        // Keep name for backward compatibility if needed elsewhere
+        name: p.patientName || "NA",
+      }));
+
+      setPatients(formatted);
+    } catch (err) {
+      console.error("Error fetching patients:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:8000/records", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // format backend data for UI
-        const formatted = res.data.map((p) => ({
-          name: p.patientName || "NA",
-          age: p.age || "NA",
-          gender: p.gender || "NA",
-          lastVisit: p.lastVisit || "NA",
-          condition: p.chiefComplaint || "NA",
-          status: "Completed", // or derive from backend if available
-        }));
-
-        setPatients(formatted);
-      } catch (err) {
-        console.error("Error fetching patients:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPatients();
   }, []);
 
+  // ✅ NEW: Handle refresh after deletion from Notes page
+  useEffect(() => {
+    if (location.state?.refresh) {
+      fetchPatients(); // Reload patient list
+      // Clear the state to prevent repeated refreshes
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  // ✅ CHANGED: Navigate to /notes instead of /analytics
   const handlePatientClick = (patient) => {
-    navigate("/analytics", { state: { patient } });
+    // ⚠️ Ensure patient has record_uuid before navigating
+    if (!patient.record_uuid) {
+      console.error("Patient missing record_uuid:", patient);
+      alert("Error: Cannot view patient details - missing record ID");
+      return;
+    }
+
+    // Navigate to Notes page with complete patient data
+    navigate("/notes", { 
+      state: { 
+        patient: {
+          record_uuid: patient.record_uuid,
+          patientName: patient.patientName,
+          age: patient.age,
+          gender: patient.gender,
+          lastVisit: patient.lastVisit,
+          condition: patient.condition,
+          status: patient.status,
+        }
+      } 
+    });
   };
 
   const handleNewSession = () => {
@@ -82,6 +123,8 @@ export default function SessionsPage() {
     console.log("Session completed with data:", extractedData);
     alert("Session data saved successfully!");
     setIsRecording(false);
+    // ✅ ADDED: Refresh patient list after new session
+    fetchPatients();
   };
 
   const handleCancel = () => {
@@ -158,7 +201,7 @@ export default function SessionsPage() {
                 >
                   {patients.map((patient, i) => (
                     <tr
-                      key={i}
+                      key={patient.record_uuid || i}
                       onClick={() => handlePatientClick(patient)}
                       className={`hover:cursor-pointer ${
                         theme === "light"
@@ -190,7 +233,8 @@ export default function SessionsPage() {
                                 : "text-gray-100"
                             } font-medium`}
                           >
-                            {patient.name}
+                            {/* ✅ CHANGED: Use patientName instead of name */}
+                            {patient.patientName}
                           </div>
                         </div>
                       </td>

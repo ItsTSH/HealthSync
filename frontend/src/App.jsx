@@ -6,6 +6,7 @@ import Sessions from "./pages/session";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Notes from "./pages/Notes";
 
 export default function App() {
   const [theme, setTheme] = useState("light");
@@ -37,6 +38,10 @@ export default function App() {
           path="/register"
           element={<Register theme={theme} toggleTheme={toggleTheme} />}
         />
+        <Route
+            path="/notes"
+            element={<Notes theme={theme} toggleTheme={toggleTheme} />}
+          />
         <Route
           path="*"
           element={<Login theme={theme} toggleTheme={toggleTheme} />}
