@@ -35,7 +35,7 @@ export function EditAppointmentDialog({
 }: EditAppointmentDialogProps) {
   const { updateAppointmentData } = useAppointments()
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState(appointment || {})
+  const [formData, setFormData] = useState<Appointment>(appointment || ({} as Appointment))
 
   if (!appointment) return null
 

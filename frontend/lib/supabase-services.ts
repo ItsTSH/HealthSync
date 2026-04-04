@@ -8,7 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import type { Note, NoteFormData, NoteVersion, ProcessingStatus } from "./supabase-types"
 import { createFetchHeaders } from "./api-auth"
 
-const supabase = createClient()
+export const supabase = createClient()
 
 /**
  * ===== CREATE OPERATIONS =====
@@ -161,15 +161,15 @@ export async function fetchNoteById(id: string): Promise<Note | null> {
         age: data.age ? Number(data.age) : undefined,
         chiefComplaint: String(data.chiefComplaint || ''),
         symptoms: String(data.symptoms || ''),
-        previousDiagnosis: data.previousDiagnosis ? String(data.previousDiagnosis) : undefined,
-        previousMedications: data.previousMedications ? String(data.previousMedications) : undefined,
-        bloodPressure: data.bloodPressure ? String(data.bloodPressure) : undefined,
-        heartRate: data.heartRate ? String(data.heartRate) : undefined,
-        temperature: data.temperature ? String(data.temperature) : undefined,
-        allergies: data.allergies ? String(data.allergies) : undefined,
-        medication: data.medication ? String(data.medication) : undefined,
-        diagnosis: data.diagnosis ? String(data.diagnosis) : undefined,
-        status: String(data.status || 'pending'),
+        previousDiagnosis: data.previousDiagnosis ? String(data.previousDiagnosis) : null,
+        previousMedications: data.previousMedications ? String(data.previousMedications) : null,
+        bloodPressure: data.bloodPressure ? Number(data.bloodPressure) : null,
+        heartRate: data.heartRate ? Number(data.heartRate) : null,
+        temperature: data.temperature ? Number(data.temperature) : null,
+        allergies: data.allergies ? String(data.allergies) : null,
+        medication: data.medication ? String(data.medication) : null,
+        diagnosis: data.diagnosis ? String(data.diagnosis) : null,
+        status: (data.status || 'pending') as 'pending' | 'processing' | 'completed' | 'failed',
         error: data.error ? String(data.error) : null,
         createdAt: data.createdAt || new Date().toISOString(),
         updatedAt: data.updatedAt || new Date().toISOString(),

@@ -76,28 +76,21 @@ export const patientData: PatientData[] = [
 
 export type Record = {
   id: string
-  patient_id?: string
-  patient_name?: string
-  chief_complaint?: string
-  diagnosis?: string
-  room?: number
-  date_time?: string | Date
-  status?: "pending" | "completed"
-  vitals?: {
-    blood_pressure?: string
-    heart_rate?: number
-    temperature?: number
-    respiratory_rate?: number
-    oxygen_saturation?: number
-  }
-  clinician_name?: string
-  notes?: string
-  age?: string | number
-  gender?: string
-  symptoms?: string
-  previous_diagnosis?: string
-  previous_medications?: string
-  other_info?: string
+  createdAt: string
+  patientName: string
+  age: number
+  chiefComplaint: string
+  symptoms: string
+  previousDiagnosis: string | null
+  previousMedications: string | null
+  bloodPressure: number | null
+  heartRate: number | null
+  temperature: number | null
+  allergies: string | null
+  medication: string | null
+  diagnosis: string | null
+  status?: "pending" | "processing" | "completed" | "failed"
+  error?: string | null
 }
 
 // Grouped patient data from backend records
@@ -109,6 +102,6 @@ export type GroupedPatientData = {
   chiefComplaint: string // Most recent chief_complaint
   diagnosis?: string // Most recent diagnosis (if available)
   room?: number // Most recent room (if available)
-  status?: "pending" | "completed" // Most recent status
+  status?: "pending" | "processing" | "completed" | "failed" // Most recent status
   recordCount: number // Total number of records for this patient
 }
