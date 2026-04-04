@@ -63,7 +63,7 @@ export function groupNotesByPatient(notes: Note[]) {
         chiefComplaint: mostRecent.chiefComplaint || "No complaint recorded",
         diagnosis: mostRecent.diagnosis || "",
         status: mostRecent.status || "pending",
-        noteCount: patientNotes.length,
+        recordCount: patientNotes.length,
       }
     }
   )
