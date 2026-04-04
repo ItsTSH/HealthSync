@@ -1,0 +1,5 @@
+import PatientDetailPage from "@/components/patients/PatientDetailPage"
+
+export default function Page() {
+  return <PatientDetailPage />
+}
