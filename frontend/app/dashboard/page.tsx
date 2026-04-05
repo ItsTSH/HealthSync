@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Skeleton } from "boneyard-js/react"
 import {
   Card,
   CardAction,
@@ -79,24 +80,30 @@ export default function Dashboard() {
                 </div>
             </div>
             <div className = "py-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
-                   <CardHeader className="text-muted-foreground">Patients Today</CardHeader>
-                   <CardContent>
-                        <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.patientsToday}</div>
-                    </CardContent>
-                </Card>
-                <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
-                    <CardHeader className="text-muted-foreground">Upcoming Appointments</CardHeader>
-                    <CardContent>
-                        <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.upcomingAppointments}</div>
-                    </CardContent>
-                </Card>
-                <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
-                    <CardHeader className="text-muted-foreground">Pending Notes</CardHeader>
-                    <CardContent>
-                        <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.pendingNotes}</div>
-                    </CardContent>
-                </Card>
+                <Skeleton name="dashboard-metric-1" loading={loading}>
+                    <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
+                       <CardHeader className="text-muted-foreground">Patients Today</CardHeader>
+                       <CardContent>
+                            <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.patientsToday}</div>
+                        </CardContent>
+                    </Card>
+                </Skeleton>
+                <Skeleton name="dashboard-metric-2" loading={loading}>
+                    <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
+                        <CardHeader className="text-muted-foreground">Upcoming Appointments</CardHeader>
+                        <CardContent>
+                            <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.upcomingAppointments}</div>
+                        </CardContent>
+                    </Card>
+                </Skeleton>
+                <Skeleton name="dashboard-metric-3" loading={loading}>
+                    <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
+                        <CardHeader className="text-muted-foreground">Pending Notes</CardHeader>
+                        <CardContent>
+                            <div className="text-3xl text-card-foreground">{loading ? '-' : metrics.pendingNotes}</div>
+                        </CardContent>
+                    </Card>
+                </Skeleton>
             </div>
 
             <div className = "grid grid-cols-1 md:grid-cols-3 gap-4 w-full pb-10">
@@ -105,18 +112,24 @@ export default function Dashboard() {
                         Recent Sessions
                     </CardHeader>
                     <CardContent>
-                        <div className = "bg-card rounded-radius h-[50vh] overflow-hidden">
-                            <TimelineComponent />
-                        </div>
+                        <Skeleton name="dashboard-timeline" loading={loading}>
+                            <div className = "bg-card rounded-radius h-[50vh] overflow-hidden">
+                                <TimelineComponent />
+                            </div>
+                        </Skeleton>
                     </CardContent>
                 </Card>
-                    <Card className="bg-card border-border drop-shadow">
-                        <CardHeader className="text-muted-foreground px-8 py-2">Today's Schedule</CardHeader>
-                        <CardContent>
+                <Card className="bg-card border-border drop-shadow">
+                    <CardHeader className="text-muted-foreground px-8 py-2">Today's Schedule</CardHeader>
+                    <CardContent>
+                        <Skeleton name="dashboard-schedule" loading={loading}>
                             <DashboardSchedule/>
-                        </CardContent>
-                    </Card>
-                <div className="bg-background p-3 py-2 rounded-radius"><DashboardActions/></div>
+                        </Skeleton>
+                    </CardContent>
+                </Card>
+                <Skeleton name="dashboard-actions" loading={loading}>
+                    <div className="bg-background p-3 py-2 rounded-radius"><DashboardActions/></div>
+                </Skeleton>
             </div>
         </>
     )

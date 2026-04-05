@@ -70,7 +70,12 @@ async def transcribeEndpoint(
                 "symptoms": extracted.get("symptoms"),
                 "previousDiagnosis": extracted.get("previousDiagnosis"),
                 "previousMedications": extracted.get("previousMedications"),
-                "otherInfo": extracted.get("otherInfo"),
+                "bloodPressure": extracted.get("bloodPressure"),
+                "heartRate": extracted.get("heartRate"),
+                "temperature": extracted.get("temperature"),
+                "allergies": extracted.get("allergies"),
+                "medication": extracted.get("medication"),
+                "diagnosis": extracted.get("diagnosis"),
             }
             return TranscriptionResponse(
                 # transcription=clean_transcription,  # Original, unmodified
