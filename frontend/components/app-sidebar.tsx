@@ -1,7 +1,7 @@
 "use client"
 import { Calendar, Home, Notebook, User, Users, Mic, Stethoscope, MessageCircle } from "lucide-react"
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   SidebarProvider,
@@ -22,6 +22,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
   SidebarMenuAction,
+  useSidebar,
 } from '@/components/animate-ui/components/radix/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -84,9 +85,69 @@ export function AppSidebar() {
     const router = useRouter();
     const { session, signOut } = useAuth();
     const supabase = createClient();
+    const { state, toggleSidebar } = useSidebar();
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    
     const [profile, setProfile] = useState<any>(null);
     const [recentSessions, setRecentSessions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [wasHoverExpanded, setWasHoverExpanded] = useState(false);
+
+    // Initialize sidebar state from localStorage
+    useEffect(() => {
+        const savedState = localStorage.getItem('sidebar-state');
+        if (savedState && typeof window !== 'undefined') {
+            // The state should be loaded from localStorage
+            const currentState = localStorage.getItem('sidebar-state');
+            if (currentState === 'collapsed' && state === 'expanded') {
+                toggleSidebar();
+            }
+        }
+    }, []);
+
+    // Save sidebar state to localStorage whenever it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('sidebar-state', state);
+        }
+    }, [state]);
+
+    // Handle mouse enter on sidebar to expand when collapsed
+    const handleMouseEnter = () => {
+        if (state === 'collapsed') {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+            setWasHoverExpanded(true);
+            toggleSidebar();
+        }
+    };
+
+    // Handle mouse leave on sidebar to collapse if expanded via hover
+    const handleMouseLeave = () => {
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+        }
+        // Collapse after a short delay to avoid flickering
+        hoverTimeoutRef.current = setTimeout(() => {
+            // Only collapse if this expansion was due to hover and sidebar state is collapsed
+            const savedState = localStorage.getItem('sidebar-state');
+            if (wasHoverExpanded && savedState === 'collapsed' && state === 'expanded') {
+                toggleSidebar();
+                setWasHoverExpanded(false);
+            }
+        }, 300);
+    };
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (!session?.user?.id) {
@@ -170,7 +231,13 @@ export function AppSidebar() {
     };
             
     return (
-        <Sidebar collapsible="icon" className="bg-sidebar border border-border drop-shadow">
+        <Sidebar 
+            ref={sidebarRef}
+            collapsible="icon" 
+            className="bg-sidebar border border-border drop-shadow"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+        >
             <SidebarHeader className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground py-1">
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg"

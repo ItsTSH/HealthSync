@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { Skeleton } from "boneyard-js/react"
 import { useAuth } from "@/components/auth/AuthContext"
 import { createClient } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
@@ -121,7 +122,49 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading settings...</div>
+    return (
+      <div className="py-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Settings</h1>
+          <p className="text-lg text-muted-foreground">
+            Manage your account preferences and settings
+          </p>
+        </div>
+        
+        <Skeleton name="settings-tabs" loading={true}>
+          <Tabs defaultValue="account" className="w-full border-border shadow-md rounded-lg">
+            <TabsList className="mb-6 border-b-border bg-transparent w-full justify-start rounded-md p-0">
+              <TabsTrigger value="account" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                <UserIcon className="w-4 h-4 mr-2" />
+                Account
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                <Bell className="w-4 h-4 mr-2" />
+                Notifications
+              </TabsTrigger>
+              <TabsTrigger value="security" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                <Lock className="w-4 h-4 mr-2" />
+                Security
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="account" className="space-y-6">
+              <Card className="border-border shadow-md rounded-lg">
+                <CardHeader>
+                  <CardTitle>Profile Information</CardTitle>
+                  <CardDescription>Update your account details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="h-12 bg-muted rounded animate-pulse"></div>
+                  <div className="h-12 bg-muted rounded animate-pulse"></div>
+                  <div className="h-24 bg-muted rounded animate-pulse"></div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </Skeleton>
+      </div>
+    )
   }
 
   return (
@@ -146,7 +189,8 @@ export default function SettingsPage() {
         </Alert>
       )}
 
-      <Tabs defaultValue={defaultTab} className="w-full border-border shadow-md rounded-lg">
+      <Skeleton name="settings-tabs-main" loading={false}>
+        <Tabs defaultValue={defaultTab} className="w-full border-border shadow-md rounded-lg">
         <TabsList className="mb-6 border-b-border bg-transparent w-full justify-start rounded-md p-0">
           <TabsTrigger value="account" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
             <UserIcon className="w-4 h-4 mr-2" />
@@ -346,6 +390,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </Skeleton>
     </div>
   )
 }

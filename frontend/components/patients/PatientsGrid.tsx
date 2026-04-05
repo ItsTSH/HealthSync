@@ -141,12 +141,37 @@ export default function PatientsGrid() {
     setCurrentPage(1)
   }
 
-  // Loading state
+  // Loading state - with skeleton screens
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-96">
-        <Spinner className="size-12 mb-4" />
-        <p className="text-muted-foreground">Loading patients from backend...</p>
+      <div className="w-full space-y-6">
+        {/* Search Skeleton */}
+        <Skeleton name="patients-search" loading={true}>
+          <div className="max-w-lg">
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">
+              Search patients
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <Input
+                disabled
+                placeholder="Search by name or patient ID"
+                className="pl-9"
+              />
+            </div>
+          </div>
+        </Skeleton>
+
+        {/* Grid Skeleton */}
+        <Skeleton name="patients-grid-loader" loading={true}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        </Skeleton>
       </div>
     )
   }

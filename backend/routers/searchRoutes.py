@@ -95,7 +95,7 @@ def semanticSearch(
 
 
 @router.post("/notes", response_model=list[NoteSearchResult])
-def semanticSearchNotes(
+async def semanticSearchNotes(
     search_input: SearchQuery,
     current_user: str = Depends(get_current_user)
 ) -> list[NoteSearchResult]:
@@ -106,6 +106,7 @@ def semanticSearchNotes(
     
     NEW endpoint optimized for RAG. Searches ChromaDB embeddings and
     fetches full note data from Supabase for enriched results.
+    Uses Redis caching for note fetches.
     
     Args:
         search_input: SearchQuery with query or note_id
@@ -124,8 +125,8 @@ def semanticSearchNotes(
             logger.info(f"Searching with text query: {query_text[:50]}...")
             
         elif search_input.note_id:
-            # Fetch note from Supabase to build query
-            note = fetch_note(search_input.note_id)
+            # Fetch note from Supabase (with caching) to build query
+            note = await fetch_note(search_input.note_id)
             if not note:
                 raise HTTPException(
                     status_code=404,
@@ -179,8 +180,8 @@ def semanticSearchNotes(
                 # Extract note_id from embedding ID (format: note_{id})
                 note_id = int(embedding_id.split("_")[1])
                 
-                # Fetch full note from Supabase
-                note_data = fetch_note(note_id)
+                # Fetch full note from Supabase (with caching)
+                note_data = await fetch_note(note_id)
                 if not note_data:
                     logger.warning(f"Note {note_id} not found in Supabase, skipping")
                     continue

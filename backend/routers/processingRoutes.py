@@ -17,7 +17,7 @@ router = APIRouter(prefix="/process", tags=["Processing"])
 
 
 @router.post("/note", response_model=ProcessNoteResponse)
-def process_note(
+async def process_note(
     request: ProcessNoteRequest,
     current_user: str = Depends(get_current_user)
 ) -> ProcessNoteResponse:
@@ -29,7 +29,7 @@ def process_note(
     ⚠️ STATUS-BASED PROCESSING PIPELINE:
     
     Process flow:
-    1. Fetch note from Supabase
+    1. Fetch note from Supabase (with caching)
     2. Check if already processing/completed (prevent duplicates)
     3. Set status to 'processing'
     4. Validate required fields
@@ -51,9 +51,9 @@ def process_note(
     note_id = request.note_id
     
     try:
-        # STEP 1: Fetch note from Supabase
+        # STEP 1: Fetch note from Supabase (uses Redis cache)
         logger.info(f"Fetching note {note_id} from Supabase for user {current_user}...")
-        note = fetch_note(note_id)
+        note = await fetch_note(note_id)
         
         if not note:
             logger.error(f"Note {note_id} not found in Supabase")
@@ -90,7 +90,7 @@ def process_note(
         
         # STEP 3: Set status to 'processing' to prevent concurrent processing
         logger.info(f"Setting note {note_id} status to 'processing'...")
-        status_updated = update_note_status(note_id, "processing", None)
+        status_updated = await update_note_status(note_id, "processing", None, current_user)
         if not status_updated:
             logger.warning(f"Failed to set processing status for note {note_id}, continuing anyway...")
         
@@ -101,7 +101,7 @@ def process_note(
         if not is_valid:
             logger.warning(f"Note {note_id} validation failed: {error_msg}")
             # Set status to 'failed' with error message
-            update_note_status(note_id, "failed", error_msg)
+            await update_note_status(note_id, "failed", error_msg, current_user)
             raise HTTPException(
                 status_code=400,
                 detail=f"Validation failed: {error_msg}"
@@ -119,7 +119,7 @@ def process_note(
             error_msg = "Unable to generate embeddings from note data"
             logger.error(f"No embeddable content generated for note {note_id}")
             # Set status to 'failed' with error message
-            update_note_status(note_id, "failed", error_msg)
+            await update_note_status(note_id, "failed", error_msg, current_user)
             raise HTTPException(
                 status_code=400,
                 detail=error_msg
@@ -131,7 +131,7 @@ def process_note(
         
         # STEP 8: Update status to 'completed'
         logger.info(f"Updating status for note {note_id} to 'completed'...")
-        completed = update_note_status(note_id, "completed", None)
+        completed = await update_note_status(note_id, "completed", None, current_user)
         
         if not completed:
             # Log warning - embedding is stored in ChromaDB even if status update fails
@@ -151,7 +151,7 @@ def process_note(
         logger.error(f"❌ Unexpected error processing note {note_id}: {error_str}", exc_info=True)
         # Update status to 'failed' with error message
         try:
-            update_note_status(note_id, "failed", error_str)
+            await update_note_status(note_id, "failed", error_str, current_user)
         except Exception as status_error:
             logger.error(f"Failed to update status to failed: {str(status_error)}")
         

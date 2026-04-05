@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { Skeleton } from "boneyard-js/react"
 import { useParams, useRouter } from "next/navigation"
 import SessionTimeline from "@/components/patients/SessionTimeline"
 import { Spinner } from "@/components/ui/spinner"
@@ -109,10 +110,19 @@ export default function PatientDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Spinner className="size-12 mb-4" />
-        <p className="text-muted-foreground">Loading patient sessions...</p>
-      </div>
+      <Skeleton name="patient-detail-loading" loading={true}>
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <div className="w-full max-w-4xl space-y-4 p-4">
+            <div className="h-12 bg-muted rounded animate-pulse" />
+            <div className="h-8 bg-muted rounded animate-pulse" />
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </Skeleton>
     )
   }
 

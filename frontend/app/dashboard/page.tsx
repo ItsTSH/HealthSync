@@ -26,6 +26,7 @@ export default function Dashboard() {
         upcomingAppointments: 0,
         pendingNotes: 0
     })
+    const [doctorName, setDoctorName] = useState<string>('')
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -33,6 +34,17 @@ export default function Dashboard() {
         
         const fetchMetrics = async () => {
             try {
+                // Fetch doctor profile
+                const { data: profileData } = await supabase
+                    .from('user_profiles')
+                    .select('full_name, username')
+                    .eq('id', session.user.id)
+                    .single()
+                
+                if (profileData) {
+                    setDoctorName(profileData.full_name || profileData.username || 'Doctor')
+                }
+                
                 const today = new Date().toISOString().split('T')[0]
                 
                 // Fetch appointments for today (patients today)
@@ -73,13 +85,13 @@ export default function Dashboard() {
 
     return (
         <>
-            <div className = "py-5 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-4 w-full">
-                <div className="w-full size-10 p-2 gap-2">   
-                    <h1 className="text-4xl text-foreground">Welcome Back</h1>
+            <div className="py-5 w-full">
+                <div className="w-full p-2 gap-2">   
+                    <h1 className="text-4xl text-foreground">Welcome Back <span className="text-secondary-foreground">{doctorName && `${doctorName}`}</span></h1>
                     <TodayDate/>
                 </div>
             </div>
-            <div className = "py-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+            <div className="py-10 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
                 <Skeleton name="dashboard-metric-1" loading={loading}>
                     <Card className="border drop-shadow bg-card hover:bg-secondary border-border">
                        <CardHeader className="text-muted-foreground">Patients Today</CardHeader>

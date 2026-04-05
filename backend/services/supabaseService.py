@@ -1,8 +1,22 @@
-"""Supabase service for managing notes operations"""
+"""Supabase service for managing notes operations with Redis caching
+
+This module provides:
+- Cached note fetching (single notes and user's notes)
+- Cache-aside pattern for read operations
+- Cache invalidation on writes
+- Graceful fallback to Supabase when Redis is unavailable
+"""
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from supabase import create_client, Client
 from core.config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_TABLE_NOTES
+from services.cache import (
+    CacheService,
+    InvalidationService,
+    CacheKeyNamespace,
+    NOTE_TTL,
+    NOTES_LIST_TTL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +39,9 @@ def get_supabase_admin_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
-def fetch_note(note_id: str) -> Optional[Dict[str, Any]]:
+def fetch_note_from_supabase(note_id: str) -> Optional[Dict[str, Any]]:
     """
-    Fetch a note from Supabase by note_id
-    
-    Uses the admin client to bypass RLS policies (backend processing needs access to all notes)
+    Internal: Fetch note from Supabase (no caching, used as cache source)
     
     Args:
         note_id: UUID of the note to fetch
@@ -57,13 +69,53 @@ def fetch_note(note_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def update_note_status(
+async def fetch_note(note_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch a note from Supabase by note_id with Redis caching.
+    
+    Implements cache-aside pattern:
+    1. Check Redis cache first
+    2. If hit → return cached data
+    3. If miss → fetch from Supabase
+    4. Store in Redis with TTL
+    5. If Redis unavailable → fetch directly from Supabase
+    
+    Uses the admin client to bypass RLS policies (backend processing needs access to all notes)
+    
+    Args:
+        note_id: UUID of the note to fetch
+        
+    Returns:
+        Note data dict or None if not found
+        
+    Note:
+        This function is async to support Redis operations.
+        If you have sync code, use a wrapper like:
+        asyncio.run(fetch_note(note_id))
+    """
+    cache_key = CacheKeyNamespace.note(note_id)
+    
+    # Cache-aside pattern with fetch function
+    async def source_fetch():
+        return fetch_note_from_supabase(note_id)
+    
+    return await CacheService.cache_aside(
+        key=cache_key,
+        fetch_fn=source_fetch,
+        ttl=NOTE_TTL
+    )
+
+
+async def update_note_status(
     note_id: str, 
     status: str, 
-    error: Optional[str] = None
+    error: Optional[str] = None,
+    user_id: Optional[str] = None
 ) -> bool:
     """
-    Update the status (and optionally error) for a note
+    Update the status (and optionally error) for a note.
+    
+    Automatically invalidates Redis cache after successful update.
     
     Uses the admin client to bypass RLS policies (backend needs access to update all notes)
     
@@ -71,6 +123,7 @@ def update_note_status(
         note_id: UUID of the note to update
         status: New status ('pending', 'processing', 'completed', 'failed')
         error: Optional error message (should be set when status is 'failed')
+        user_id: Optional user ID to also invalidate their notes list
         
     Returns:
         True if successful, False otherwise
@@ -90,13 +143,24 @@ def update_note_status(
             .execute()
         )
         logger.info(f"Successfully updated status for note {note_id} to '{status}'")
+        
+        # Invalidate cache after successful update (non-blocking)
+        try:
+            await InvalidationService.invalidate_note(note_id, user_id)
+        except Exception as e:
+            logger.warning(f"Failed to invalidate cache for note {note_id}: {str(e)}")
+        
         return True
     except Exception as e:
         logger.error(f"Error updating note {note_id} status: {str(e)}")
         return False
 
 
-def update_note_processed_status(note_id: str, is_processed: bool = True) -> bool:
+async def update_note_processed_status(
+    note_id: str,
+    is_processed: bool = True,
+    user_id: Optional[str] = None
+) -> bool:
     """
     DEPRECATED: Use update_note_status() instead
     
@@ -106,12 +170,13 @@ def update_note_processed_status(note_id: str, is_processed: bool = True) -> boo
     Args:
         note_id: UUID of the note to update
         is_processed: Whether the note has been processed
+        user_id: Optional user ID to also invalidate their notes list
         
     Returns:
         True if successful, False otherwise
     """
     status = "completed" if is_processed else "pending"
-    return update_note_status(note_id, status, None)
+    return await update_note_status(note_id, status, None, user_id)
 
 
 def validate_note_data(note: Dict[str, Any]) -> tuple[bool, str]:
@@ -168,3 +233,73 @@ def normalize_note_metadata(note: Dict[str, Any]) -> Dict[str, Any]:
                     normalized[normalized_field] = value
     
     return normalized
+
+
+def fetch_notes_by_user_from_supabase(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Internal: Fetch all notes for a user from Supabase (no caching, used as cache source)
+    
+    Args:
+        user_id: UUID of the user
+        limit: Maximum number of notes to fetch
+        
+    Returns:
+        List of note data dicts or empty list if none found
+    """
+    try:
+        supabase = get_supabase_admin_client()
+        response = (
+            supabase.table(SUPABASE_TABLE_NOTES)
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        
+        if response.data:
+            logger.info(f"Successfully fetched {len(response.data)} notes for user {user_id}")
+            return response.data
+        else:
+            logger.info(f"No notes found for user {user_id}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Error fetching notes for user {user_id} from Supabase: {str(e)}")
+        return []
+
+
+async def fetch_notes_by_user(
+    user_id: str,
+    limit: int = 50
+) -> List[Dict[str, Any]]:
+    """
+    Fetch all notes for a user with Redis caching.
+    
+    Implements cache-aside pattern:
+    1. Check Redis cache first
+    2. If hit → return cached data
+    3. If miss → fetch from Supabase
+    4. Store in Redis with TTL
+    5. If Redis unavailable → fetch directly from Supabase
+    
+    Args:
+        user_id: UUID of the user
+        limit: Maximum number of notes to fetch (default: 50)
+        
+    Returns:
+        List of note data dicts or empty list if none found
+        
+    Note:
+        Uses shorter TTL than individual notes since lists change more frequently.
+    """
+    cache_key = CacheKeyNamespace.notes_by_user(user_id)
+    
+    async def source_fetch():
+        return fetch_notes_by_user_from_supabase(user_id, limit)
+    
+    return await CacheService.cache_aside(
+        key=cache_key,
+        fetch_fn=source_fetch,
+        ttl=NOTES_LIST_TTL
+    )
