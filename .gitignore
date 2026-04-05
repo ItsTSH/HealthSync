@@ -24,3 +24,8 @@ yarn-error.log*
 **/__pycache__
 **/venv
 **/chroma_db
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/
