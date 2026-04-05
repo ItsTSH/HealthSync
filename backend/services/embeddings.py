@@ -6,17 +6,15 @@ from core.initialization import embeddingModel, collection
 logger = logging.getLogger(__name__)
 
 
-def _generateEmbeddingsUnified(data: dict, schema: str = "note") -> str:
+def _generateEmbeddingsUnified(data: dict) -> str:
     """
-    Unified function to generate embedding text from medical data.
+    Generate embedding text from medical data (Supabase notes only).
     
-    Consolidates logic for both legacy PatientRecord and new Supabase note schemas.
-    Parameterizes field extraction to support multiple data formats.
+    Combines all embeddable fields into a single text string suitable for
+    semantic embeddings and similarity search.
     
     Args:
-        data: Dictionary containing medical record/note fields
-        schema: Data schema type - "note" (Supabase) or "record" (legacy PatientRecord)
-                Both schemas support the same fields, just with different sources.
+        data: Dictionary containing note fields from Supabase
         
     Returns:
         String combining all embeddable medical information for semantic search
@@ -54,39 +52,18 @@ def _generateEmbeddingsUnified(data: dict, schema: str = "note") -> str:
     if data.get("age") and data['age'] != 0:
         parts.append(f"Age: {data['age']}")
     
-    # Legacy PatientRecord may have otherInfo field
-    if schema == "record" and data.get("otherInfo"):
-        parts.append(f"Other Info: {data['otherInfo']}")
-    
     embedding_text = " | ".join([p for p in parts if p.strip()])
     
     if not embedding_text.strip():
-        logger.warning(f"No embeddable content found in {schema} data")
+        logger.warning(f"No embeddable content found in note data")
     
     return embedding_text
-
-
-def generateEmbeddings(record_data: dict) -> str:
-    """
-    Generate embedding text from legacy PatientRecord data.
-    
-    Backward compatibility wrapper. Use _generateEmbeddingsUnified() for new code.
-    Builds text from multiple fields for comprehensive embeddings.
-    
-    Args:
-        record_data: Dictionary containing legacy medical record fields
-        
-    Returns:
-        String combining all medical information for embedding
-    """
-    return _generateEmbeddingsUnified(record_data, schema="record")
 
 
 def generateEmbeddingsForNote(note_data: dict) -> str:
     """
     Generate comprehensive embedding text for a Supabase note.
     
-    Backward compatibility wrapper. Use _generateEmbeddingsUnified() for new code.
     Designed for RAG with all relevant clinical fields:
     - Chief complaint
     - Symptoms
@@ -101,34 +78,7 @@ def generateEmbeddingsForNote(note_data: dict) -> str:
     Returns:
         Combined text string suitable for semantic embedding
     """
-    return _generateEmbeddingsUnified(note_data, schema="note")
-
-
-def storeEmbeddings(record_uuid: str, embeddingText: str, metadata: dict = None):
-    """
-    Store embedding in ChromaDB with metadata
-    
-    Legacy function for backward compatibility.
-    
-    Args:
-        record_uuid: UUID of the record
-        embeddingText: Text to embed
-        metadata: Optional metadata dict
-    """
-    try:
-        embedding = embeddingModel.encode(embeddingText).tolist()
-        meta = metadata or {"record_id": str(record_uuid)}
-        
-        collection.add(
-            ids=[f"record_{record_uuid}"],
-            embeddings=[embedding],
-            documents=[embeddingText],
-            metadatas=[meta]
-        )
-        logger.info(f"Successfully stored embedding for record {record_uuid}")
-    except Exception as e:
-        logger.error(f"Error storing embedding for record {record_uuid}: {str(e)}")
-        raise
+    return _generateEmbeddingsUnified(note_data)
 
 
 def storeNoteEmbedding(note_id: str, embedding_text: str, note_data: dict):
