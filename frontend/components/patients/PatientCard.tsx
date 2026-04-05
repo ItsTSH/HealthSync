@@ -16,7 +16,7 @@ interface PatientCardProps {
   patient: GroupedPatientData & { patientUUID: string }
 }
 
-export default function PatientCard({ patient }: PatientCardProps) {
+const PatientCard = React.memo(function PatientCard({ patient }: PatientCardProps) {
   // Use patientUUID for navigation instead of base64-encoded patient name
   return (
     <Link href={`/patients/${patient.patientUUID}`} className="no-underline">
@@ -60,4 +60,6 @@ export default function PatientCard({ patient }: PatientCardProps) {
       </Card>
     </Link>
   )
-}
+})
+
+export default PatientCard

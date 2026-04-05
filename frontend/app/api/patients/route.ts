@@ -1,4 +1,5 @@
-import { fetchRecords, groupNotesByPatient } from "@/lib/api"
+import { fetchAllNotes } from "@/lib/supabase-services"
+import { groupNotesByPatient } from "@/lib/api"
 import { v5 as uuidv5 } from "uuid"
 
 // Namespace UUID for generating deterministic patient UUIDs
@@ -13,8 +14,9 @@ export async function GET() {
   try {
     console.log("[/api/patients] Fetching all patients...")
     
-    // Fetch all records from FastAPI backend
-    const records = await fetchRecords()
+    // Fetch all records from Supabase
+    const result = await fetchAllNotes()
+    const records = result.notes
     console.log(`[/api/patients] Fetched ${records.length} records from backend`)
 
     // Group records by patient name

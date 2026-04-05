@@ -5,7 +5,7 @@ import { Skeleton } from "boneyard-js/react"
 import { useParams, useRouter } from "next/navigation"
 import SessionTimeline from "@/components/patients/SessionTimeline"
 import { Spinner } from "@/components/ui/spinner"
-import { fetchRecords } from "@/lib/api"
+import { fetchAllNotes } from "@/lib/supabase-services"
 import { getPatientNameByUUID } from "@/lib/patientUUIDMapping"
 import { parseDate, toISOString, getDaysAgoText } from "@/lib/dateUtils"
 import type { Session } from "@/lib/sessions"
@@ -41,9 +41,10 @@ export default function PatientDetailPage() {
 
         setPatientName(name)
 
-        // Fetch all records from backend
-        console.log("[PatientDetailPage] Fetching all records from backend...")
-        const allRecords = await fetchRecords()
+        // Fetch all records from Supabase
+        console.log("[PatientDetailPage] Fetching all records from Supabase...")
+        const result = await fetchAllNotes()
+        const allRecords = result.notes
         console.log(`[PatientDetailPage] Fetched ${allRecords.length} records from backend`)
 
         // Filter records for this patient by patient name

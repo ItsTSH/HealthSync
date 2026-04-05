@@ -25,3 +25,32 @@ SUPABASE_TABLE_NOTES = "notes"
 
 # Redis Configuration
 REDIS_NOTES_URL = os.getenv("REDIS_NOTES_URL")
+
+
+def get_cache_headers(volatility: str = "medium") -> dict:
+    """
+    Get appropriate Cache-Control headers for API responses.
+    
+    Creates cache headers based on data volatility:
+    - "fast": Static content (health checks, metadata) - cache 1 hour
+    - "medium": User-specific data (notes, analysis) - cache 5 minutes
+    - "volatile": Real-time data (current status, live updates) - never cache
+    
+    Args:
+        volatility: One of "fast", "medium", "volatile"
+        
+    Returns:
+        Dictionary with "Cache-Control" header value
+        
+    Example:
+        return JSONResponse(
+            content={"status": "ok"},
+            headers=get_cache_headers("fast")
+        )
+    """
+    cache_strategies = {
+        "fast": {"Cache-Control": "public, max-age=3600"},           # 1 hour (static)
+        "medium": {"Cache-Control": "private, max-age=300"},         # 5 minutes (user-specific)
+        "volatile": {"Cache-Control": "no-cache, must-revalidate"}, # Never cache (real-time)
+    }
+    return cache_strategies.get(volatility, cache_strategies["medium"])

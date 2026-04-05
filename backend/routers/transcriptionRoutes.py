@@ -4,6 +4,7 @@ from schema.transcriptionSchema import TranscriptionResponse
 from services.transcription import transcribeAudio
 from services.extraction import extractMetadata
 from core.auth import get_current_user
+from core.rate_limit import limiter, LIMITS
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/transcribe", tags=["Transcription"])
 
 
 @router.post("/", response_model=TranscriptionResponse)
+@limiter.limit(LIMITS["transcribe"])
 async def transcribeEndpoint(
     request: Request,
     audio_file: UploadFile = File(...),
@@ -47,8 +49,8 @@ async def transcribeEndpoint(
             # Clean transcription: remove newlines, collapse spaces
             clean_transcription = re.sub(r'\s+', ' ', transcription.replace('\n', '')).strip()
            
-            # Extract metadata using cleaned text
-            extracted = extractMetadata(transcription=clean_transcription)
+            # Extract metadata using cleaned text (now async - await the call)
+            extracted = await extractMetadata(transcription=clean_transcription)
             
             # Clean up extracted metadata values
             for key, value in extracted.items():

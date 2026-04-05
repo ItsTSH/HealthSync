@@ -4,14 +4,14 @@ import * as React from "react"
 import { useMemo, useState, useEffect } from "react"
 import { Skeleton } from "boneyard-js/react"
 import { Search, ChevronDown } from "lucide-react"
-import { v4 as uuidv4 } from "uuid"
 
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import PatientCard from "./PatientCard"
 import type { GroupedPatientData } from "@/lib/types"
-import { fetchRecords, groupNotesByPatient } from "@/lib/api"
-import { savePatientUUIDMapping } from "@/lib/patientUUIDMapping"
+import { fetchAllNotes } from "@/lib/supabase-services"
+import { groupNotesByPatient } from "@/lib/api"
+import { initializePatientUUIDs } from "@/lib/patientUUIDMapping"
 import { usePatientContext } from "./PatientContext"
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ interface PatientUUIDMapping {
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50]
 
-export default function PatientsGrid() {
+const PatientsGrid = React.memo(function PatientsGrid() {
   const [q, setQ] = useState("")
   const [allPatients, setAllPatients] = useState<PatientWithUUID[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -52,36 +52,36 @@ export default function PatientsGrid() {
 
         console.log("[PatientsGrid] Fetching records from backend...")
 
-        // Fetch all records from backend
-        const records = await fetchRecords()
+        // Fetch all records from Supabase
+        const result = await fetchAllNotes()
+        const records = result.notes
         console.log(`[PatientsGrid] Fetched ${records.length} records from backend`)
 
         // Group records by patient name
         const grouped = groupNotesByPatient(records)
         console.log(`[PatientsGrid] Grouped into ${grouped.length} unique patients`)
 
-        // Generate random patientUUID for each patient and create mapping
+        // Use centralized UUID initialization (reuses existing UUIDs if available)
+        const patientNames = grouped.map((p) => p.patientName)
+        const nameToUUIDMap = initializePatientUUIDs(patientNames)
+        
+        // Create reverse mapping (UUID -> name) for state
         const newUUIDMapping: PatientUUIDMapping = {}
-        const patientsWithNewUUIDs: PatientWithUUID[] = grouped.map((patient) => {
-          const patientUUID = uuidv4() // Generate new random UUID each time
+        const patientsWithUUIDs: PatientWithUUID[] = grouped.map((patient) => {
+          const patientUUID = nameToUUIDMap[patient.patientName]
           newUUIDMapping[patientUUID] = patient.patientName
-          console.log(
-            `[PatientsGrid] Generated patientUUID for "${patient.patientName}": ${patientUUID}`
-          )
           return {
             ...patient,
             patientUUID,
           }
         })
 
-        // Store mapping in localStorage for persistence across navigation
-        savePatientUUIDMapping(newUUIDMapping)
-        console.log("[PatientsGrid] UUID Mapping saved to localStorage:", newUUIDMapping)
+        console.log("[PatientsGrid] Patients initialized with centralized UUID mapping")
 
         if (isMounted) {
-          setAllPatients(patientsWithNewUUIDs)
+          setAllPatients(patientsWithUUIDs)
           setUUIDMapping(newUUIDMapping)
-          setPatients(patientsWithNewUUIDs)
+          setPatients(patientsWithUUIDs)
 
           // Create map of patient name to records
           const recordsMap = new Map<string, typeof records>()
@@ -311,5 +311,6 @@ export default function PatientsGrid() {
       </div>
     </Skeleton>
   )
-}
+})
 
+export default PatientsGrid

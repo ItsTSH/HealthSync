@@ -1,22 +1,4 @@
 import type { Note } from "./supabase-types"
-import { fetchAllNotes, fetchNoteById, fetchNotesByPatientName } from "./supabase-services"
-
-/**
- * Fetch all notes from Supabase
- * @returns Array of all notes
- * @throws Error if the Supabase call fails
- */
-export async function fetchRecords(): Promise<Note[]> {
-  try {
-    console.log("[fetchRecords] Fetching all notes from Supabase")
-    const notes = await fetchAllNotes()
-    console.log("[fetchRecords] Notes fetched successfully:", notes.length)
-    return notes
-  } catch (error) {
-    console.error("[fetchRecords] Error:", error)
-    throw error
-  }
-}
 
 /**
  * Groups notes by patient name and returns aggregated patient data
@@ -70,41 +52,6 @@ export function groupNotesByPatient(notes: Note[]) {
 
   // Sort by most recent date
   return groupedPatients.sort((a, b) => b.dateTime.getTime() - a.dateTime.getTime())
-}
-
-/**
- * Fetch all notes for a specific patient by name
- * @param patientName The patient name to filter by
- * @returns Array of notes for that patient
- * @throws Error if the Supabase call fails
- */
-export async function fetchPatientRecords(patientName: string): Promise<Note[]> {
-  try {
-    console.log("[fetchPatientRecords] Fetching notes for patient:", patientName)
-    const notes = await fetchNotesByPatientName(patientName)
-    console.log("[fetchPatientRecords] Notes fetched:", notes.length)
-    return notes
-  } catch (error) {
-    console.error("[fetchPatientRecords] Error:", error)
-    throw error
-  }
-}
-
-/**
- * Fetch a single note by ID
- * @param noteId The UUID of the note
- * @returns The note object, or null if not found
- */
-export async function fetchRecordByUuid(noteId: string): Promise<Note | null> {
-  try {
-    console.log("[fetchRecordByUuid] Fetching note with ID:", noteId)
-    const note = await fetchNoteById(noteId)
-    console.log("[fetchRecordByUuid] Note fetched:", noteId)
-    return note
-  } catch (error) {
-    console.error("[fetchRecordByUuid] Error:", error)
-    return null
-  }
 }
 
 

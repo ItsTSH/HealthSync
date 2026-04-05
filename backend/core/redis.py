@@ -90,3 +90,83 @@ async def is_redis_available() -> bool:
     except Exception as e:
         logger.warning(f"Redis unavailable: {str(e)}")
         return False
+
+
+async def acquire_processing_lock(note_id: str, ttl_seconds: int = 300) -> bool:
+    """
+    Acquire an exclusive processing lock for a note using Redis.
+    
+    Prevents concurrent processing of the same note. Uses Redis SET with NX (not exist)
+    and EX (expire) for atomic operation.
+    
+    Args:
+        note_id: UUID of the note to lock
+        ttl_seconds: Lock TTL in seconds (default 300s = 5 min)
+        
+    Returns:
+        True if lock acquired, False if already locked
+        
+    Raises:
+        Exception: If Redis unavailable or error occurs
+    """
+    try:
+        if not await is_redis_available():
+            logger.debug(f"Redis unavailable, skipping lock acquisition for note {note_id}")
+            return True  # Fail open - allow processing if Redis down
+        
+        client = await get_redis_client()
+        lock_key = f"processing:lock:{note_id}"
+        
+        # SET with NX (only if not exists) and EX (expiry in seconds)
+        # Returns True if lock acquired, None if key already exists
+        result = await client.set(
+            lock_key,
+            "1",
+            nx=True,
+            ex=ttl_seconds
+        )
+        
+        if result:
+            logger.info(f"✓ Acquired processing lock for note {note_id} ({ttl_seconds}s TTL)")
+            return True
+        else:
+            logger.warning(f"✗ Processing lock held for note {note_id}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error acquiring processing lock for {note_id}: {str(e)}")
+        raise
+
+
+async def release_processing_lock(note_id: str) -> bool:
+    """
+    Release a processing lock for a note.
+    
+    Called after processing completes (success or failure).
+    
+    Args:
+        note_id: UUID of the note to unlock
+        
+    Returns:
+        True if lock released, False if key didn't exist or error
+    """
+    try:
+        if not await is_redis_available():
+            logger.debug(f"Redis unavailable, skipping lock release for note {note_id}")
+            return True  # Fail open
+        
+        client = await get_redis_client()
+        lock_key = f"processing:lock:{note_id}"
+        
+        deleted = await client.delete(lock_key)
+        
+        if deleted:
+            logger.info(f"✓ Released processing lock for note {note_id}")
+        else:
+            logger.debug(f"Lock not found for note {note_id} (may have expired)")
+        
+        return bool(deleted)
+        
+    except Exception as e:
+        logger.error(f"Error releasing processing lock for {note_id}: {str(e)}")
+        return False

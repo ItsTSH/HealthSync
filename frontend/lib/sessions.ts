@@ -21,98 +21,6 @@ export type Session = {
   clinicianName?: string
 }
 
-export const sessions: Session[] = [
-  {
-    id: "s-1",
-    patientId: "728ed52f",
-    timestamp: new Date("2025-12-15T09:00:00").toISOString(),
-    chiefComplaint: "Headache and dizziness",
-    diagnosis: "Migraine",
-    vitals: {
-      bloodPressure: "130/85",
-      heartRate: 72,
-      temperature: 37.2,
-      respiratoryRate: 16,
-      oxygenSaturation: 98,
-    },
-    medications: ["Ibuprofen 400mg", "Metoprolol 25mg"],
-    allergies: ["Penicillin", "Sulfonamides"],
-    notes: "Patient reports onset of symptoms this morning. Pain worsened after screen time.",
-    assessment: "Primary migraine with typical presentation",
-    treatmentPlan: "Rest in dark room, hydration, and analgesics. Follow-up in 1 week.",
-    clinicianName: "Dr. Sarah Johnson",
-  },
-  {
-    id: "s-2",
-    patientId: "728ed52f",
-    timestamp: new Date("2025-11-10T10:30:00").toISOString(),
-    chiefComplaint: "Follow-up: medication review",
-    diagnosis: "Tension headache",
-    vitals: {
-      bloodPressure: "128/82",
-      heartRate: 70,
-      temperature: 36.8,
-      respiratoryRate: 16,
-      oxygenSaturation: 99,
-    },
-    medications: ["Amitriptyline 25mg daily"],
-    allergies: ["Penicillin"],
-    notes: "Follow-up after 4 weeks. Patient reports improved symptoms with current medication.",
-    assessment: "Stable tension headache, well-controlled",
-    treatmentPlan: "Continue current medication regimen",
-    clinicianName: "Dr. Michael Chen",
-  },
-  {
-    id: "s-3",
-    patientId: "489e1d42",
-    timestamp: new Date("2025-12-15T08:30:00").toISOString(),
-    chiefComplaint: "Hypertension follow-up",
-    diagnosis: "Stable",
-    vitals: {
-      bloodPressure: "135/88",
-      heartRate: 68,
-      temperature: 37.0,
-      respiratoryRate: 16,
-      oxygenSaturation: 98,
-    },
-    medications: ["Lisinopril 10mg", "Amlodipine 5mg"],
-    allergies: [],
-    notes: "BP readings slightly elevated. Advised on diet and exercise.",
-    assessment: "Hypertension, adequately controlled with current therapy",
-    treatmentPlan: "Continue medications, recheck BP in 2 weeks.",
-    clinicianName: "Dr. Patricia Williams",
-  },
-  {
-    id: "s-4",
-    patientId: "589e1d42",
-    timestamp: new Date("2025-12-15T10:00:00").toISOString(),
-    chiefComplaint: "Chest discomfort",
-    diagnosis: "Angina - refer",
-    vitals: {
-      bloodPressure: "145/92",
-      heartRate: 88,
-      temperature: 37.1,
-      respiratoryRate: 18,
-      oxygenSaturation: 97,
-    },
-    medications: ["Aspirin 100mg", "Atorvastatin 20mg"],
-    allergies: ["NSAIDs"],
-    notes: "Sharp chest pain radiating to left arm. Occurred during stress.",
-    assessment: "Angina pectoris, requires cardiology consult",
-    treatmentPlan: "Refer to cardiology. Start nitrates as needed.",
-    referrals: "Cardiology - Urgent",
-    clinicianName: "Dr. James Anderson",
-  },
-]
-
-export function getSessionsForPatient(patientId: string) {
-  return sessions.filter((s) => s.patientId === patientId)
-}
-
-export function getSessionById(id: string) {
-  return sessions.find((s) => s.id === id)
-}
-
 // Simple encryption placeholder - can be enhanced later
 export function encryptValues(value: string | null | undefined): string {
   if (!value) return ""
@@ -162,15 +70,7 @@ export async function updateSession(
     }
 
     console.log("[updateSession] Supabase response:", data)
-
-    // Update local state as well
-    const index = sessions.findIndex((s) => s.id === id)
-    if (index !== -1) {
-      sessions[index] = { ...sessions[index], ...updates }
-      return sessions[index]
-    }
-
-    return null
+    return data?.[0] || null
   } catch (error) {
     console.error("[updateSession] Error updating session:", error)
     throw error
@@ -198,17 +98,7 @@ export async function deleteSession(id: string) {
     }
 
     console.log("[deleteSession] Successfully deleted from Supabase")
-
-    // Remove from local state
-    const index = sessions.findIndex((s) => s.id === id)
-    if (index !== -1) {
-      sessions.splice(index, 1)
-      console.log("[deleteSession] Session deleted from local state")
-      return true
-    }
-
-    console.log("[deleteSession] Session not found in local state")
-    return false
+    return true
   } catch (error) {
     console.error("[deleteSession] Error deleting session:", error)
     throw error
