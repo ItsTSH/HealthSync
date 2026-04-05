@@ -1,12 +1,17 @@
 export type MedicalMetadata = {
   patientName: string
-  age: string
+  age: string | number
   gender: string
   chiefComplaint: string
   symptoms: string
   previousDiagnosis: string
   previousMedications: string
-  otherInfo: string
+  bloodPressure: string | number
+  heartRate: string | number
+  temperature: string | number
+  allergies: string
+  medication: string
+  diagnosis: string
 }
 
 export const emptyMedicalMetadata: MedicalMetadata = {
@@ -17,7 +22,12 @@ export const emptyMedicalMetadata: MedicalMetadata = {
   symptoms: "",
   previousDiagnosis: "",
   previousMedications: "",
-  otherInfo: "",
+  bloodPressure: "",
+  heartRate: "",
+  temperature: "",
+  allergies: "",
+  medication: "",
+  diagnosis: "",
 }
 
 export const medicalMetadataLabels: Record<keyof MedicalMetadata, string> = {
@@ -28,16 +38,26 @@ export const medicalMetadataLabels: Record<keyof MedicalMetadata, string> = {
   symptoms: "Symptoms",
   previousDiagnosis: "Previous Diagnosis",
   previousMedications: "Previous Medications",
-  otherInfo: "Other Information",
+  bloodPressure: "Blood Pressure (mmHg)",
+  heartRate: "Heart Rate (bpm)",
+  temperature: "Temperature (°C)",
+  allergies: "Allergies",
+  medication: "Current Medications",
+  diagnosis: "Diagnosis",
 }
 
 export const medicalMetadataDescriptions: Record<keyof MedicalMetadata, string> = {
   patientName: "Full name of the patient",
-  age: "Patient's age",
+  age: "Patient's age in years",
   gender: "Patient's gender",
   chiefComplaint: "Primary reason for visit",
   symptoms: "Detailed symptoms reported by patient",
   previousDiagnosis: "Previous medical diagnoses",
-  previousMedications: "Currently or previously used medications",
-  otherInfo: "Additional relevant medical information",
+  previousMedications: "Previously used medications",
+  bloodPressure: "Systolic blood pressure reading",
+  heartRate: "Heart rate in beats per minute",
+  temperature: "Body temperature in Celsius",
+  allergies: "Known allergies",
+  medication: "Currently prescribed or used medications",
+  diagnosis: "Preliminary or confirmed diagnosis",
 }

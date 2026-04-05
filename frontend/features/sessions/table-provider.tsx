@@ -4,6 +4,7 @@ import { columns } from "./columns"
 import type { Note } from "@/lib/supabase-types"
 import { DataTable } from "./data-table"
 import { useState, useEffect } from "react"
+import { Skeleton } from "boneyard-js/react"
 import { fetchAllNotes, subscribeToNoteUpdates } from "@/lib/supabase-services"
 import { Spinner } from "@/components/ui/spinner"
 
@@ -65,7 +66,9 @@ export default function DataTableProvider() {
           </div>
         </div>
       ) : (
-        <DataTable columns={columns} data={data} />
+        <Skeleton name="sessions-data-table" loading={isLoading}>
+          <DataTable columns={columns} data={data} />
+        </Skeleton>
       )}
     </div>
   )

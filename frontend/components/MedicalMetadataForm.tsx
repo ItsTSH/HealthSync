@@ -36,7 +36,7 @@ export function MedicalMetadataForm({
   const [editedData, setEditedData] = useState<MedicalMetadata>(data)
   const [isEditing, setIsEditing] = useState(false)
 
-  const handleFieldChange = (field: keyof MedicalMetadata, value: string) => {
+  const handleFieldChange = (field: keyof MedicalMetadata, value: string | number) => {
     setEditedData((prev) => ({
       ...prev,
       [field]: value,
@@ -58,7 +58,16 @@ export function MedicalMetadataForm({
     "symptoms",
     "previousDiagnosis",
     "previousMedications",
-    "otherInfo",
+    "allergies",
+    "medication",
+    "diagnosis",
+  ]
+
+  const numberFields: (keyof MedicalMetadata)[] = [
+    "age",
+    "bloodPressure",
+    "heartRate",
+    "temperature",
   ]
 
   return (
@@ -91,102 +100,209 @@ export function MedicalMetadataForm({
       <Separator className="bg-border" />
 
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Patient Basic Information */}
-          <div className="space-y-2">
-            <label className="text-base font-semibold text-foreground">
-              {medicalMetadataLabels.patientName}
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {medicalMetadataDescriptions.patientName}
-            </p>
-            {isEditing ? (
-              <Input
-                value={editedData.patientName}
-                onChange={(e) =>
-                  handleFieldChange("patientName", e.target.value)
-                }
-                placeholder="Enter patient name"
-                className="border-border"
-              />
-            ) : (
-              <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
-                {data.patientName || "—"}
-              </div>
-            )}
-          </div>
+        {/* Patient Basic Information */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Patient Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Patient Name */}
+            <div className="space-y-2">
+              <label className="text-base font-semibold text-foreground">
+                {medicalMetadataLabels.patientName}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {medicalMetadataDescriptions.patientName}
+              </p>
+              {isEditing ? (
+                <Input
+                  value={editedData.patientName}
+                  onChange={(e) =>
+                    handleFieldChange("patientName", e.target.value)
+                  }
+                  placeholder="Enter patient name"
+                  className="border-border"
+                />
+              ) : (
+                <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
+                  {data.patientName || "—"}
+                </div>
+              )}
+            </div>
 
-          {/* Age */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">
-              {medicalMetadataLabels.age}
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {medicalMetadataDescriptions.age}
-            </p>
-            {isEditing ? (
-              <Input
-                value={editedData.age}
-                onChange={(e) => handleFieldChange("age", e.target.value)}
-                placeholder="Enter age"
-                className="border-border"
-              />
-            ) : (
-              <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
-                {data.age || "—"}
-              </div>
-            )}
-          </div>
+            {/* Age */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">
+                {medicalMetadataLabels.age}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {medicalMetadataDescriptions.age}
+              </p>
+              {isEditing ? (
+                <Input
+                  type="number"
+                  value={editedData.age}
+                  onChange={(e) => handleFieldChange("age", e.target.value)}
+                  placeholder="Enter age"
+                  className="border-border"
+                />
+              ) : (
+                <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
+                  {data.age || "—"}
+                </div>
+              )}
+            </div>
 
-          {/* Gender */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-foreground">
-              {medicalMetadataLabels.gender}
-            </label>
-            <p className="text-xs text-muted-foreground">
-              {medicalMetadataDescriptions.gender}
-            </p>
-            {isEditing ? (
-              <Input
-                value={editedData.gender}
-                onChange={(e) => handleFieldChange("gender", e.target.value)}
-                placeholder="Enter gender"
-                className="border-border"
-              />
-            ) : (
-              <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
-                {data.gender || "—"}
-              </div>
-            )}
+            {/* Gender */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-foreground">
+                {medicalMetadataLabels.gender}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {medicalMetadataDescriptions.gender}
+              </p>
+              {isEditing ? (
+                <select
+                  value={editedData.gender}
+                  onChange={(e) => handleFieldChange("gender", e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              ) : (
+                <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
+                  {data.gender || "—"}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <Separator className="my-6 bg-border" />
 
-        {/* Medical Details - Larger text areas */}
-        <div className="space-y-6">
-          {textareaFields.map((field) => (
-            <div key={field} className="space-y-2">
-              <label className="text-base font-semibold text-foreground">
-                {medicalMetadataLabels[field]}
-              </label>
-              <p className="text-xs text-muted-foreground">
-                {medicalMetadataDescriptions[field]}
-              </p>
-              {isEditing ? (
-                <Textarea
-                  value={editedData[field]}
-                  onChange={(e) => handleFieldChange(field, e.target.value)}
-                  placeholder={`Enter ${medicalMetadataLabels[field].toLowerCase()}`}
-                  className="border-border min-h-[100px]"
-                />
-              ) : (
-                <div className="p-3 rounded-md bg-foreground/5 text-foreground min-h-[100px] whitespace-pre-wrap overflow-auto">
-                  {data[field] || "—"}
-                </div>
-              )}
-            </div>
-          ))}
+        {/* Chief Complaint and Symptoms */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Chief Complaint & Symptoms</h3>
+          <div className="space-y-6">
+            {["chiefComplaint", "symptoms"].map((field) => (
+              <div key={field} className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  {medicalMetadataLabels[field as keyof MedicalMetadata]}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {medicalMetadataDescriptions[field as keyof MedicalMetadata]}
+                </p>
+                {isEditing ? (
+                  <Textarea
+                    value={editedData[field as keyof MedicalMetadata]}
+                    onChange={(e) => handleFieldChange(field as keyof MedicalMetadata, e.target.value)}
+                    placeholder={`Enter ${medicalMetadataLabels[field as keyof MedicalMetadata].toLowerCase()}`}
+                    className="border-border min-h-[100px]"
+                  />
+                ) : (
+                  <div className="p-3 rounded-md bg-foreground/5 text-foreground min-h-[100px] whitespace-pre-wrap overflow-auto">
+                    {data[field as keyof MedicalMetadata] || "—"}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-6 bg-border" />
+
+        {/* Vital Signs */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Vital Signs</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {["bloodPressure", "heartRate", "temperature"].map((field) => (
+              <div key={field} className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">
+                  {medicalMetadataLabels[field as keyof MedicalMetadata]}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {medicalMetadataDescriptions[field as keyof MedicalMetadata]}
+                </p>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    value={editedData[field as keyof MedicalMetadata]}
+                    onChange={(e) => handleFieldChange(field as keyof MedicalMetadata, e.target.value)}
+                    placeholder={`Enter ${medicalMetadataLabels[field as keyof MedicalMetadata].toLowerCase()}`}
+                    className="border-border"
+                  />
+                ) : (
+                  <div className="p-2 rounded-md bg-foreground/5 text-foreground min-h-9 flex items-center">
+                    {data[field as keyof MedicalMetadata] || "—"}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-6 bg-border" />
+
+        {/* Medical History */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Medical History</h3>
+          <div className="space-y-6">
+            {["previousDiagnosis", "previousMedications", "allergies"].map((field) => (
+              <div key={field} className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  {medicalMetadataLabels[field as keyof MedicalMetadata]}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {medicalMetadataDescriptions[field as keyof MedicalMetadata]}
+                </p>
+                {isEditing ? (
+                  <Textarea
+                    value={editedData[field as keyof MedicalMetadata]}
+                    onChange={(e) => handleFieldChange(field as keyof MedicalMetadata, e.target.value)}
+                    placeholder={`Enter ${medicalMetadataLabels[field as keyof MedicalMetadata].toLowerCase()}`}
+                    className="border-border min-h-[80px]"
+                  />
+                ) : (
+                  <div className="p-3 rounded-md bg-foreground/5 text-foreground min-h-[80px] whitespace-pre-wrap overflow-auto">
+                    {data[field as keyof MedicalMetadata] || "—"}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-6 bg-border" />
+
+        {/* Assessment & Plan */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Assessment & Plan</h3>
+          <div className="space-y-6">
+            {["medication", "diagnosis"].map((field) => (
+              <div key={field} className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  {medicalMetadataLabels[field as keyof MedicalMetadata]}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {medicalMetadataDescriptions[field as keyof MedicalMetadata]}
+                </p>
+                {isEditing ? (
+                  <Textarea
+                    value={editedData[field as keyof MedicalMetadata]}
+                    onChange={(e) => handleFieldChange(field as keyof MedicalMetadata, e.target.value)}
+                    placeholder={`Enter ${medicalMetadataLabels[field as keyof MedicalMetadata].toLowerCase()}`}
+                    className="border-border min-h-[100px]"
+                  />
+                ) : (
+                  <div className="p-3 rounded-md bg-foreground/5 text-foreground min-h-[100px] whitespace-pre-wrap overflow-auto">
+                    {data[field as keyof MedicalMetadata] || "—"}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </CardContent>
 

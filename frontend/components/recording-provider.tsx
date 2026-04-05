@@ -151,7 +151,12 @@ export default function RecordProvider({ onMetadataStateChange }: RecordProvider
         symptoms: responseData.symptoms || "",
         previousDiagnosis: responseData.previousDiagnosis || "",
         previousMedications: responseData.previousMedications || "",
-        otherInfo: responseData.otherInfo || "",
+        bloodPressure: responseData.bloodPressure || "",
+        heartRate: responseData.heartRate || "",
+        temperature: responseData.temperature || "",
+        allergies: responseData.allergies || "",
+        medication: responseData.medication || "",
+        diagnosis: responseData.diagnosis || "",
       }
 
       setMetadata(extractedMetadata)
@@ -194,7 +199,7 @@ export default function RecordProvider({ onMetadataStateChange }: RecordProvider
     setIsSubmittingMetadata(true)
 
     try {
-      // Convert MedicalMetadata to NoteFormData
+      // Convert MedicalMetadata to note data
       // Handle age conversion (could be string or number from form)
       const age = typeof confirmedMetadata.age === 'string' 
         ? parseInt(confirmedMetadata.age, 10) 
@@ -204,19 +209,27 @@ export default function RecordProvider({ onMetadataStateChange }: RecordProvider
         throw new Error('Age must be a valid number')
       }
 
+      // Helper function to convert string to number or null
+      const toNumberOrNull = (value: string | number): number | null => {
+        if (value === "" || value === null || value === undefined) return null
+        const num = typeof value === 'string' ? parseInt(value, 10) : value
+        return isNaN(num) ? null : num
+      }
+
       const noteData = {
         patientName: confirmedMetadata.patientName,
         age: age,
+        gender: confirmedMetadata.gender,
         chiefComplaint: confirmedMetadata.chiefComplaint,
         symptoms: confirmedMetadata.symptoms,
         previousDiagnosis: confirmedMetadata.previousDiagnosis || null,
         previousMedications: confirmedMetadata.previousMedications || null,
-        bloodPressure: null,
-        heartRate: null,
-        temperature: null,
-        allergies: null,
-        medication: null,
-        diagnosis: null,
+        bloodPressure: toNumberOrNull(confirmedMetadata.bloodPressure),
+        heartRate: toNumberOrNull(confirmedMetadata.heartRate),
+        temperature: toNumberOrNull(confirmedMetadata.temperature),
+        allergies: confirmedMetadata.allergies || null,
+        medication: confirmedMetadata.medication || null,
+        diagnosis: confirmedMetadata.diagnosis || null,
       }
 
       console.log('[RecordingProvider] Creating note in Supabase:', noteData)

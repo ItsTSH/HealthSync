@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useMemo, useState, useEffect } from "react"
+import { Skeleton } from "boneyard-js/react"
 import { Search, ChevronDown } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 
@@ -164,124 +165,126 @@ export default function PatientsGrid() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      {/* Search and Filter Controls */}
-      <div className="space-y-4">
-        <div className="max-w-lg">
-          <label className="mb-2 block text-sm font-medium text-muted-foreground">
-            Search patients
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Search className="h-4 w-4 text-muted-foreground" />
+    <Skeleton name="patients-grid" loading={isLoading}>
+      <div className="w-full space-y-6">
+        {/* Search and Filter Controls */}
+        <div className="space-y-4">
+          <div className="max-w-lg">
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">
+              Search patients
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <Input
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value)
+                  setCurrentPage(1) // Reset to page 1 when searching
+                }}
+                placeholder="Search by name or patient ID"
+                className="pl-9"
+              />
             </div>
-            <Input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value)
-                setCurrentPage(1) // Reset to page 1 when searching
-              }}
-              placeholder="Search by name or patient ID"
-              className="pl-9"
-            />
-          </div>
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-muted-foreground">Items per page:</label>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm bg-background hover:bg-accent transition-colors">
-                {itemsPerPage}
-                <ChevronDown className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {ITEMS_PER_PAGE_OPTIONS.map((count) => (
-                  <DropdownMenuItem
-                    key={count}
-                    onClick={() => handleItemsPerPageChange(count.toString())}
-                    className={itemsPerPage === count ? "bg-accent" : ""}
-                  >
-                    {count}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
-          {filtered.length > 0 && (
-            <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1}-{Math.min(endIndex, filtered.length)} of {filtered.length}
-              {allPatients.length > filtered.length &&
-                ` (${allPatients.length} unique patients total)`}
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-muted-foreground">Items per page:</label>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-sm bg-background hover:bg-accent transition-colors">
+                  {itemsPerPage}
+                  <ChevronDown className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {ITEMS_PER_PAGE_OPTIONS.map((count) => (
+                    <DropdownMenuItem
+                      key={count}
+                      onClick={() => handleItemsPerPageChange(count.toString())}
+                      className={itemsPerPage === count ? "bg-accent" : ""}
+                    >
+                      {count}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Empty state */}
-      {filtered.length === 0 && (
-        <div className="flex items-center justify-center min-h-96 text-center">
-          <div>
-            <p className="text-muted-foreground text-lg font-semibold mb-2">No patients found</p>
-            {allPatients.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No patient records available</p>
-            ) : (
-              <p className="text-muted-foreground text-sm">Try adjusting your search filters</p>
+            {filtered.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1}-{Math.min(endIndex, filtered.length)} of {filtered.length}
+                {allPatients.length > filtered.length &&
+                  ` (${allPatients.length} unique patients total)`}
+              </div>
             )}
           </div>
         </div>
-      )}
 
-      {/* Patient Cards Grid */}
-      {paginatedPatients.length > 0 && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {paginatedPatients.map((p) => (
-              <PatientCard key={p.id} patient={p} />
-            ))}
-          </div>
-
-          {/* Pagination Buttons */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-2 text-sm font-medium rounded-md border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
-              >
-                Previous
-              </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === page
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border hover:bg-accent"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 text-sm font-medium rounded-md border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
-              >
-                Next
-              </button>
+        {/* Empty state */}
+        {filtered.length === 0 && (
+          <div className="flex items-center justify-center min-h-96 text-center">
+            <div>
+              <p className="text-muted-foreground text-lg font-semibold mb-2">No patients found</p>
+              {allPatients.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No patient records available</p>
+              ) : (
+                <p className="text-muted-foreground text-sm">Try adjusting your search filters</p>
+              )}
             </div>
-          )}
-        </>
-      )}
-    </div>
+          </div>
+        )}
+
+        {/* Patient Cards Grid */}
+        {paginatedPatients.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {paginatedPatients.map((p) => (
+                <PatientCard key={p.id} patient={p} />
+              ))}
+            </div>
+
+            {/* Pagination Buttons */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm font-medium rounded-md border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                >
+                  Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border hover:bg-accent"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 text-sm font-medium rounded-md border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Skeleton>
   )
 }
 
