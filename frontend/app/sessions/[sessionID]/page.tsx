@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
+import { Skeleton } from "boneyard-js/react"
 import { useRouter } from "next/navigation"
 import { fetchNoteById } from "@/lib/supabase-services"
 import SessionDetailContent from "@/components/sessions/session-detail-content"
@@ -56,9 +57,19 @@ export default function SessionPage({ params }: Props) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner className="size-12" />
-      </div>
+      <Skeleton name="session-detail-loading" loading={true}>
+        <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+          <div className="w-full space-y-4">
+            <div className="h-12 bg-muted rounded animate-pulse" />
+            <div className="h-96 bg-muted rounded animate-pulse" />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="h-24 bg-muted rounded animate-pulse" />
+              <div className="h-24 bg-muted rounded animate-pulse" />
+              <div className="h-24 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </Skeleton>
     )
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { Skeleton } from "boneyard-js/react"
 import { Timeline } from "./ui/timeline";
 import {
   Card,
@@ -66,7 +67,17 @@ export function TimelineComponent(){
     }, [session?.user?.id, supabase]);
 
     if (loading) {
-        return <div className="text-muted-foreground">Loading sessions...</div>;
+        return (
+            <Skeleton name="timeline-loading" loading={true}>
+                <div className="relative w-full overflow-y-auto h-full translate-y-[-10%]">
+                    <div className="space-y-4">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-24 bg-muted rounded animate-pulse" />
+                        ))}
+                    </div>
+                </div>
+            </Skeleton>
+        );
     }
 
     if (data.length === 0) {
@@ -74,8 +85,10 @@ export function TimelineComponent(){
     }
 
     return (
-        <div className="relative w-full overflow-y-auto h-full translate-y-[-10%]">
-            <Timeline data={data}/>
-        </div>
+        <Skeleton name="timeline" loading={false}>
+            <div className="relative w-full overflow-y-auto h-full translate-y-[-10%]">
+                <Timeline data={data}/>
+            </div>
+        </Skeleton>
     )
 }

@@ -28,22 +28,16 @@ export function Navbar(){
                 <div className ="flex items-center gap-4 px-2">
                     <ModeToggle />
                     
-                    {/* User Menu */}
+                    {/* Logout Button */}
                     {user && (
-                        <div className="flex items-center gap-2 pl-2 border-l border-border">
-                            <div className="text-sm text-muted-foreground flex flex-col items-end">
-                                <p className="font-medium text-foreground">{user.email?.split('@')[0]}</p>
-                                <p className="text-xs">{user.email}</p>
-                            </div>
-                            <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={handleLogout}
-                                className="hover:bg-destructive/10"
-                            >
-                                <LogOut className="w-4 h-4" />
-                            </Button>
-                        </div>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={handleLogout}
+                            className="hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </Button>
                     )}
                 </div>
             </nav>
