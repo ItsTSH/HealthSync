@@ -27,9 +27,12 @@ export function CalendarView() {
     appointments.map((a) => a.appointment_date)
   )
 
-  // Convert YYYY-MM-DD string to Date for calendar
+  // Convert YYYY-MM-DD string to Date for calendar (using midnight local time)
   const selectedDateObj = calendarSelectedDate
-    ? new Date(calendarSelectedDate + "T00:00:00")
+    ? (() => {
+        const [year, month, day] = calendarSelectedDate.split('-').map(Number)
+        return new Date(year, month - 1, day)
+      })()
     : new Date()
 
   return (
@@ -41,7 +44,11 @@ export function CalendarView() {
             selected={selectedDateObj}
             onSelect={(date) => {
               if (date) {
-                const dateStr = date.toISOString().split('T')[0]
+                // Format date as YYYY-MM-DD using local timezone
+                const year = date.getFullYear()
+                const month = String(date.getMonth() + 1).padStart(2, '0')
+                const day = String(date.getDate()).padStart(2, '0')
+                const dateStr = `${year}-${month}-${day}`
                 setCalendarSelectedDate(dateStr)
               }
             }}
@@ -52,7 +59,11 @@ export function CalendarView() {
             }}
             modifiers={{
               hasAppointment: (date) => {
-                const dateStr = date.toISOString().split('T')[0]
+                // Format the calendar date as YYYY-MM-DD using local timezone
+                const year = date.getFullYear()
+                const month = String(date.getMonth() + 1).padStart(2, '0')
+                const day = String(date.getDate()).padStart(2, '0')
+                const dateStr = `${year}-${month}-${day}`
                 return appointmentDatesSet.has(dateStr)
               },
             }}

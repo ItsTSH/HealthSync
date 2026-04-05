@@ -46,13 +46,20 @@ export default function Dashboard() {
                 }
                 
                 const today = new Date().toISOString().split('T')[0]
+                const todayStart = `${today}T00:00:00`
+                const todayEnd = `${today}T23:59:59`
                 
-                // Fetch appointments for today (patients today)
-                const { data: appointmentsData, count: appointmentsCount } = await supabase
-                    .from('appointments')
-                    .select('*', { count: 'exact' })
-                    .eq('user_id', session.user.id)
-                    .eq('appointment_date', today)
+                // Fetch medical sessions (notes) created today to count unique patients
+                const { data: todayNotesData } = await supabase
+                    .from('notes')
+                    .select('patientName')
+                    .gte('createdAt', todayStart)
+                    .lt('createdAt', todayEnd)
+                
+                // Count unique patient names from today's sessions
+                const uniquePatientsToday = todayNotesData 
+                    ? new Set(todayNotesData.map(note => note.patientName)).size 
+                    : 0
                 
                 // Fetch all upcoming appointments
                 const { data: allAppointments, count: allCount } = await supabase
@@ -65,11 +72,10 @@ export default function Dashboard() {
                 const { data: pendingNotesData, count: notesCount } = await supabase
                     .from('notes')
                     .select('*', { count: 'exact' })
-                    .eq('user_id', session.user.id)
                     .eq('status', 'pending')
                 
                 setMetrics({
-                    patientsToday: appointmentsCount || 0,
+                    patientsToday: uniquePatientsToday,
                     upcomingAppointments: allCount || 0,
                     pendingNotes: notesCount || 0
                 })

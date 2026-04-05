@@ -25,7 +25,13 @@ async def semanticSearchNotes(
     
     NEW endpoint optimized for RAG. Searches ChromaDB embeddings and
     fetches full note data from Supabase for enriched results.
-    Uses Redis caching for note fetches.
+    
+    💾 CACHING STRATEGY:
+    - Each searched note uses Redis cache-aside pattern (10min TTL + jitter)
+    - Null result caching: If note deleted, cached 404 for 60s to prevent repeated lookups
+    - Hot key protection: Popular notes in search results get extended TTL
+    - Cache invalidation: Automatic when notes are updated
+    - Redis failure: System gracefully falls back to direct Supabase fetches
     
     Args:
         request: FastAPI Request object (required by slowapi rate limiter)
@@ -97,13 +103,19 @@ async def semanticSearchNotes(
         output = []
         for i, embedding_id in enumerate(results["ids"][0]):
             try:
-                # Extract note_id from embedding ID (format: note_{id})
-                note_id = int(embedding_id.split("_")[1])
+                # Extract note_id from embedding ID (format: note_{uuid})
+                # Split by underscore and rejoin remaining parts (UUIDs may contain underscores)
+                parts = embedding_id.split("_", 1)
+                if len(parts) < 2:
+                    logger.warning(f"Invalid embedding ID format: {embedding_id}")
+                    continue
                 
-                # Fetch full note from Supabase (with caching)
+                note_id = parts[1]  # Keep as string UUID
+                
+                # Fetch full note from Supabase (with caching + null result caching)
                 note_data = await fetch_note(note_id)
                 if not note_data:
-                    logger.warning(f"Note {note_id} not found in Supabase, skipping")
+                    logger.debug(f"Note {note_id} not found in Supabase or cached as null, skipping")
                     continue
                 
                 # Calculate similarity (ChromaDB returns distance, not similarity)
@@ -116,7 +128,7 @@ async def semanticSearchNotes(
                     matched_text=results["documents"][0][i]
                 ))
                 
-            except (ValueError, IndexError) as e:
+            except (ValueError, IndexError, AttributeError) as e:
                 logger.warning(f"Error parsing result {embedding_id}: {str(e)}")
                 continue
         

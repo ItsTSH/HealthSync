@@ -35,7 +35,7 @@ async def process_note(
     ⚠️ STATUS-BASED PROCESSING PIPELINE:
     
     Process flow:
-    1. Fetch note from Supabase (with caching)
+    1. Fetch note from Supabase (with Redis caching via cache-aside pattern)
     2. Check if already processing/completed (prevent duplicates)
     3. Set status to 'processing'
     4. Validate required fields
@@ -43,6 +43,18 @@ async def process_note(
     6. Generate embeddings
     7. Store in ChromaDB
     8. Update status to 'completed' on success, 'failed' with error on failure
+    
+    💾 CACHING STRATEGY:
+    - Single note fetch: Uses Redis with 10min TTL + jitter to prevent thundering herd
+    - Null result caching: 404s cached for 60s to prevent repeated DB lookups for deleted notes
+    - Cache invalidation: Automatic on status updates (ensures consistency)
+    - Hot key protection: Frequently accessed keys get extended TTL
+    - Redis failure: Graceful fallback to direct DB fetch - system works even if Redis down
+    
+    🔒 CONCURRENCY CONTROL:
+    - Processing lock: Redis-based to prevent concurrent processing of same note
+    - Double-check pattern: Status check after lock acquisition
+    - Lock release: Guaranteed in all paths (success/error/finally)
     
     Args:
         request: FastAPI Request object (required by slowapi rate limiter)
