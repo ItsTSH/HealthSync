@@ -6,23 +6,48 @@ import { DataTable } from "./data-table"
 import { useState, useEffect } from "react"
 import { Skeleton } from "boneyard-js/react"
 import { fetchAllNotes, subscribeToNoteUpdates } from "@/lib/supabase-services"
+import { createClient } from "@/lib/supabase-browser"
 import { Spinner } from "@/components/ui/spinner"
 
 export default function DataTableProvider() {
+  const supabase = createClient()
   const [data, setData] = useState<Note[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [total, setTotal] = useState(0)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        setError("Failed to get current user. Please log in.")
+        setIsLoading(false)
+        return
+      }
+      
+      setUserId(user.id)
+    }
+
+    getCurrentUser()
+  }, [supabase])
+
+  useEffect(() => {
+    if (!userId) return
+
     const loadData = async () => {
       try {
         setIsLoading(true)
         setError(null)
-        const notes = await fetchAllNotes()
-        setData(notes)
+        const result = await fetchAllNotes(page, pageSize)
+        setData(result.notes)
+        setTotal(result.total)
 
-        // Subscribe to real-time updates
-        const unsubscribe = subscribeToNoteUpdates((payload) => {
+        // Subscribe to real-time updates filtered by user_id
+        const unsubscribe = subscribeToNoteUpdates(userId, (payload) => {
           console.log('[DataTableProvider] Note updated:', payload.new.id)
           setData((prev) =>
             prev.map((note) =>
@@ -45,7 +70,7 @@ export default function DataTableProvider() {
     return () => {
       cleanup?.then((unsubscribe: any) => unsubscribe?.())
     }
-  }, [])
+  }, [userId, page, pageSize, supabase])
 
   return (
     <div className="container mx-auto py-10">

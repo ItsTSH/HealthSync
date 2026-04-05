@@ -1,6 +1,6 @@
 """Semantic search routes with RAG support via ChromaDB + Supabase"""
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from schema.searchSchema import SearchQuery, NoteSearchResult, SearchResult
 from db.models import PatientRecord, User
@@ -8,6 +8,7 @@ from core.dependencies import get_db
 from core.security import decryptValues
 from core.initialization import embeddingModel, collection
 from core.auth import get_current_user
+from core.rate_limit import limiter, LIMITS
 from services.supabaseService import fetch_note
 from typing import List
 
@@ -25,8 +26,10 @@ def decrypt_record(record: PatientRecord) -> PatientRecord:
 
 
 @router.post("/", response_model=list[SearchResult])
+@limiter.limit(LIMITS["search"])
 def semanticSearch(
-    search_input: SearchQuery,
+    request: Request,
+    search_input: SearchQuery = Body(...),
     current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -39,6 +42,7 @@ def semanticSearch(
     Will be gradually replaced by /search/notes endpoint.
     
     Args:
+        request: FastAPI Request object (required by slowapi rate limiter)
         search_input: SearchQuery with query or record_uuid
         db: Database session
         
@@ -95,8 +99,10 @@ def semanticSearch(
 
 
 @router.post("/notes", response_model=list[NoteSearchResult])
+@limiter.limit(LIMITS["search"])
 async def semanticSearchNotes(
-    search_input: SearchQuery,
+    request: Request,
+    search_input: SearchQuery = Body(...),
     current_user: str = Depends(get_current_user)
 ) -> list[NoteSearchResult]:
     """
@@ -109,6 +115,7 @@ async def semanticSearchNotes(
     Uses Redis caching for note fetches.
     
     Args:
+        request: FastAPI Request object (required by slowapi rate limiter)
         search_input: SearchQuery with query or note_id
         current_user: Authenticated user ID (from JWT token)
         

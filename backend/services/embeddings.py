@@ -1,68 +1,92 @@
 import logging
+import hashlib
+import json
 from core.initialization import embeddingModel, collection
 
 logger = logging.getLogger(__name__)
 
 
-def generateEmbeddings(record_data: dict) -> str:
+def _generateEmbeddingsUnified(data: dict, schema: str = "note") -> str:
     """
-    Generate embedding text from record data
+    Unified function to generate embedding text from medical data.
     
-    Legacy function for backward compatibility.
-    Builds text from multiple fields for comprehensive embeddings.
+    Consolidates logic for both legacy PatientRecord and new Supabase note schemas.
+    Parameterizes field extraction to support multiple data formats.
     
     Args:
-        record_data: Dictionary containing medical record fields
+        data: Dictionary containing medical record/note fields
+        schema: Data schema type - "note" (Supabase) or "record" (legacy PatientRecord)
+                Both schemas support the same fields, just with different sources.
         
     Returns:
-        String combining all medical information for embedding
+        String combining all embeddable medical information for semantic search
+        
+    Raises:
+        None (logs warning if no embeddable content found)
     """
     parts = []
     
-    # Chief complaint (highest priority)
-    if record_data.get('chiefComplaint'):
-        parts.append(f"Chief Complaint: {record_data['chiefComplaint']}")
+    # Chief complaint (primary clinical focus - highest priority)
+    if data.get('chiefComplaint'):
+        parts.append(f"Chief Complaint: {data['chiefComplaint']}")
     
-    # Symptoms
-    if record_data.get("symptoms"):
-        parts.append(f"Symptoms: {record_data['symptoms']}")
+    # Symptoms (key clinical indicator)
+    if data.get("symptoms"):
+        parts.append(f"Symptoms: {data['symptoms']}")
     
-    # Previous diagnosis
-    if record_data.get("previousDiagnosis"):
-        parts.append(f"Previous Diagnosis: {record_data['previousDiagnosis']}")
-    
-    # Previous medications
-    if record_data.get("previousMedications"):
-        parts.append(f"Previous Medications: {record_data['previousMedications']}")
+    # Previous diagnosis history
+    if data.get("previousDiagnosis"):
+        parts.append(f"Previous Diagnosis: {data['previousDiagnosis']}")
     
     # Current medications
-    if record_data.get("medication"):
-        parts.append(f"Current Medications: {record_data['medication']}")
+    if data.get("medication"):
+        parts.append(f"Current Medications: {data['medication']}")
     
-    # Allergies
-    if record_data.get("allergies"):
-        parts.append(f"Allergies: {record_data['allergies']}")
+    # Previous medications (drug history)
+    if data.get("previousMedications"):
+        parts.append(f"Previous Medications: {data['previousMedications']}")
     
-    # Age (optional, low weight but useful)
-    if record_data.get("age") and record_data['age'] != 0:
-        parts.append(f"Age: {record_data['age']}")
+    # Allergies (critical safety info)
+    if data.get("allergies"):
+        parts.append(f"Allergies: {data['allergies']}")
     
-    # Other info if present
-    if record_data.get("otherInfo"):
-        parts.append(f"Other Info: {record_data['otherInfo']}")
+    # Patient age (low weight demographic)
+    if data.get("age") and data['age'] != 0:
+        parts.append(f"Age: {data['age']}")
+    
+    # Legacy PatientRecord may have otherInfo field
+    if schema == "record" and data.get("otherInfo"):
+        parts.append(f"Other Info: {data['otherInfo']}")
     
     embedding_text = " | ".join([p for p in parts if p.strip()])
     
     if not embedding_text.strip():
-        logger.warning("No embeddable content found in record data")
+        logger.warning(f"No embeddable content found in {schema} data")
     
     return embedding_text
 
 
+def generateEmbeddings(record_data: dict) -> str:
+    """
+    Generate embedding text from legacy PatientRecord data.
+    
+    Backward compatibility wrapper. Use _generateEmbeddingsUnified() for new code.
+    Builds text from multiple fields for comprehensive embeddings.
+    
+    Args:
+        record_data: Dictionary containing legacy medical record fields
+        
+    Returns:
+        String combining all medical information for embedding
+    """
+    return _generateEmbeddingsUnified(record_data, schema="record")
+
+
 def generateEmbeddingsForNote(note_data: dict) -> str:
     """
-    Generate comprehensive embedding text for a note from Supabase
+    Generate comprehensive embedding text for a Supabase note.
     
+    Backward compatibility wrapper. Use _generateEmbeddingsUnified() for new code.
     Designed for RAG with all relevant clinical fields:
     - Chief complaint
     - Symptoms
@@ -77,42 +101,7 @@ def generateEmbeddingsForNote(note_data: dict) -> str:
     Returns:
         Combined text string suitable for semantic embedding
     """
-    parts = []
-    
-    # Chief complaint (primary clinical focus)
-    if note_data.get('chiefComplaint'):
-        parts.append(f"Chief Complaint: {note_data['chiefComplaint']}")
-    
-    # Symptoms (key clinical indicator)
-    if note_data.get("symptoms"):
-        parts.append(f"Symptoms: {note_data['symptoms']}")
-    
-    # Previous diagnosis history
-    if note_data.get("previousDiagnosis"):
-        parts.append(f"Previous Diagnosis: {note_data['previousDiagnosis']}")
-    
-    # Current medications
-    if note_data.get("medication"):
-        parts.append(f"Current Medications: {note_data['medication']}")
-    
-    # Previous medications (drug history)
-    if note_data.get("previousMedications"):
-        parts.append(f"Previous Medications: {note_data['previousMedications']}")
-    
-    # Allergies (critical safety info)
-    if note_data.get("allergies"):
-        parts.append(f"Allergies: {note_data['allergies']}")
-    
-    # Patient age (low weight demographic)
-    if note_data.get("age") and note_data['age'] != 0:
-        parts.append(f"Age: {note_data['age']}")
-    
-    embedding_text = " | ".join([p for p in parts if p.strip()])
-    
-    if not embedding_text.strip():
-        logger.warning("No embeddable content found in note data")
-    
-    return embedding_text
+    return _generateEmbeddingsUnified(note_data, schema="note")
 
 
 def storeEmbeddings(record_uuid: str, embeddingText: str, metadata: dict = None):
@@ -185,3 +174,51 @@ def storeNoteEmbedding(note_id: str, embedding_text: str, note_data: dict):
     except Exception as e:
         logger.error(f"Error storing note embedding {note_id}: {str(e)}")
         raise
+
+
+def compute_content_hash(note_data: dict) -> str:
+    """
+    Compute SHA256 hash of embeddable content to detect changes.
+    
+    Used to determine if a note's content has changed since last embedding.
+    Only includes fields that affect embeddings (excludes metadata-only fields).
+    
+    Args:
+        note_data: Note data dictionary
+        
+    Returns:
+        Hex string of first 16 characters of SHA256 hash
+        
+    Example:
+        hash1 = compute_content_hash(note1)  # "a1b2c3d4e5f6g7h8"
+        hash2 = compute_content_hash(note2)
+        
+        if hash1 == hash2:
+            print("Content unchanged, skip re-embedding")
+        else:
+            print("Content changed, regenerate embeddings")
+    """
+    try:
+        # Extract only fields that affect embeddings
+        embeddable_fields = {
+            'chiefComplaint': note_data.get('chiefComplaint'),
+            'symptoms': note_data.get('symptoms'),
+            'previousDiagnosis': note_data.get('previousDiagnosis'),
+            'medication': note_data.get('medication'),
+            'previousMedications': note_data.get('previousMedications'),
+            'allergies': note_data.get('allergies'),
+        }
+        
+        # Serialize to JSON with sorted keys for consistent hashing
+        content_str = json.dumps(embeddable_fields, sort_keys=True, default=str)
+        
+        # Compute SHA256 hash
+        content_hash = hashlib.sha256(content_str.encode()).hexdigest()[:16]
+        
+        logger.debug(f"Computed content hash: {content_hash}")
+        return content_hash
+        
+    except Exception as e:
+        logger.error(f"Error computing content hash: {str(e)}")
+        # Return empty hash on error (will force re-embedding)
+        return ""

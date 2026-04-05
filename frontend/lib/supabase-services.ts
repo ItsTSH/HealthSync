@@ -5,6 +5,7 @@
  */
 
 import { createClient } from "@/utils/supabase/client"
+import { debug } from "@/utils/debug"
 import type { Note, NoteFormData, NoteVersion, ProcessingStatus } from "./supabase-types"
 import { createFetchHeaders } from "./api-auth"
 
@@ -60,7 +61,7 @@ export async function createNote(formData: NoteFormData): Promise<Note> {
       .single()
 
     if (error) {
-      console.error('[createNote] Supabase error:', error)
+      debug.error('createNote', 'Supabase error:', error)
       throw new Error(`Failed to create note: ${error.message}`)
     }
 
@@ -68,11 +69,11 @@ export async function createNote(formData: NoteFormData): Promise<Note> {
       throw new Error('No data returned from note creation')
     }
 
-    console.log('[createNote] Note created successfully:', data)
+    debug.log('createNote', 'Note created successfully:', data)
     // Map noteID to id for consistency with Note type
     return { ...data, id: data.noteID } as Note
   } catch (error) {
-    console.error('[createNote] Error:', error)
+    debug.error('createNote', 'Error:', error)
     throw error
   }
 }
@@ -82,20 +83,31 @@ export async function createNote(formData: NoteFormData): Promise<Note> {
  */
 
 /**
- * Fetch all notes ordered by creation date (newest first)
+ * Fetch all notes with server-side pagination
+ * Ordered by creation date (newest first)
  * Used by sessions table-provider
  *
- * @returns Array of all notes
+ * @param page Page number (1-indexed, default: 1)
+ * @param pageSize Number of items per page (default: 20)
+ * @returns Object with notes array and total count
  */
-export async function fetchAllNotes(): Promise<Note[]> {
+export async function fetchAllNotes(
+  page: number = 1,
+  pageSize: number = 20
+): Promise<{ notes: Note[]; total: number }> {
   try {
-    const { data, error } = await supabase
+    // Calculate offset for this page
+    const offset = (page - 1) * pageSize
+
+    // Fetch paginated data with total count
+    const { data, error, count } = await supabase
       .from('notes')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('createdAt', { ascending: false })
+      .range(offset, offset + pageSize - 1)
 
     if (error) {
-      console.error('[fetchAllNotes] Supabase error:', error)
+      debug.error('fetchAllNotes', 'Supabase error:', error)
       throw new Error(`Failed to fetch notes: ${error.message}`)
     }
 
@@ -105,10 +117,19 @@ export async function fetchAllNotes(): Promise<Note[]> {
       id: note.noteID,
     }))
 
-    console.log('[fetchAllNotes] Fetched notes:', mappedData?.length || 0)
-    return mappedData as Note[]
+    debug.log('fetchAllNotes', 'Fetched notes:', {
+      page,
+      pageSize,
+      returned: mappedData?.length || 0,
+      total: count || 0,
+    })
+
+    return {
+      notes: mappedData as Note[],
+      total: count || 0,
+    }
   } catch (error) {
-    console.error('[fetchAllNotes] Error:', error)
+    debug.error('fetchAllNotes', 'Error:', error)
     throw error
   }
 }
@@ -123,7 +144,7 @@ export async function fetchAllNotes(): Promise<Note[]> {
  */
 export async function fetchNoteById(id: string): Promise<Note | null> {
   try {
-    console.log('[fetchNoteById] Starting fetch for ID:', id)
+    debug.log('fetchNoteById', 'Starting fetch for ID:', id)
     
     const { data, error } = await supabase
       .from('notes')
@@ -504,20 +525,31 @@ export async function retryNoteProcessing(noteId: string): Promise<Note> {
  * @param onUpdate Callback function when note is updated
  * @returns Unsubscribe function
  */
+/**
+ * Subscribe to note updates filtered by user_id and optional noteId
+ * Filters real-time events to only show current user's changes
+ *
+ * @param userId Current user's UUID
+ * @param onUpdate Callback function for updates
+ * @param noteId Optional specific note ID to monitor
+ * @returns Unsubscribe function
+ */
 export function subscribeToNoteUpdates(
+  userId: string,
   onUpdate: (payload: { new: Note; old: Note }) => void,
   noteId?: string
 ) {
-  let channel = supabase.channel('notes-changes')
+  let channel = supabase.channel(`notes-changes-${userId}`)
 
   if (noteId) {
+    // Subscribe to specific note updates for this user
     channel = channel.on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'notes',
-        filter: `id=eq.${noteId}`,
+        filter: `id=eq.${noteId},user_id=eq.${userId}`,
       },
       (payload: any) => {
         console.log('[subscribeToNoteUpdates] Note updated:', payload.new.id)
@@ -525,9 +557,15 @@ export function subscribeToNoteUpdates(
       }
     )
   } else {
+    // Subscribe to all note updates for this user
     channel = channel.on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'notes' },
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'notes',
+        filter: `user_id=eq.${userId}`,
+      },
       (payload: any) => {
         console.log('[subscribeToNoteUpdates] Note updated:', payload.new.id)
         onUpdate(payload)

@@ -1,4 +1,4 @@
-import { fetchRecords } from "@/lib/api"
+import { fetchAllNotes } from "@/lib/supabase-services"
 import { v5 as uuidv5 } from "uuid"
 import type { Session } from "@/lib/sessions"
 
@@ -17,8 +17,9 @@ export async function GET(
     
     console.log(`[/api/patients/[patientUUID]] Received patientUUID: ${patientUUID}`)
 
-    // Fetch all records from FastAPI backend
-    const allRecords = await fetchRecords()
+    // Fetch all records from Supabase
+    const result = await fetchAllNotes()
+    const allRecords = result.notes
     console.log(`[/api/patients/[patientUUID]] Total records fetched: ${allRecords.length}`)
 
     // Find the patient with matching UUID
