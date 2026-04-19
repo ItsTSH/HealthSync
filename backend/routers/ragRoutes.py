@@ -48,6 +48,8 @@ from core.exceptions import (
 )
 from tasks.embedding_tasks import process_note_embedding
 from services.supabaseService import fetch_note
+from services.patient_lookup import get_patient_lookup_service
+from services.session_context import SessionContextManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/search", tags=["RAG"])
@@ -55,6 +57,439 @@ router = APIRouter(prefix="/search", tags=["RAG"])
 # Initialize v3.1 services
 query_classifier = QueryClassifier()
 pii_masking_service = PIIMaskingService()
+
+# Initialize v4.0 services
+patient_lookup_service = get_patient_lookup_service()
+session_context_manager = SessionContextManager()
+
+
+# Initialize v4.0 services
+patient_lookup_service = get_patient_lookup_service()
+session_context_manager = SessionContextManager()
+
+
+# ============================================================================
+# v4.0+ STREAMING ENDPOINT (Multi-Chat, Patient Disambiguation)
+# ============================================================================
+
+@router.post("/rag-stream")
+@limiter.limit(LIMITS.get("search", "30/minute"))
+async def rag_search_stream(
+    request: Request,
+    query_input: RAGQueryRequest = Body(...),
+    current_user: str = Depends(get_current_user),
+    supabase=Depends(lambda: None)  # Add dependency if needed
+):
+    """
+    v4.0+ Multi-stage RAG search with streaming response (NDJSON).
+    
+    NEW in v4.0:
+    - Chat-scoped context (chat_id required)
+    - Patient extraction (spaCy NER + fuzzy matching)
+    - Intelligent disambiguation UI signaling
+    - Session-scoped pronounresolution
+    - Strict patient_ids filtering in retrieval
+    - Query counter tracking (0-10 per chat)
+    
+    Pipeline:
+    - STAGE 0: Load chat session context
+    - STAGE 1: Patient extraction (spaCy NER)
+    - STAGE 2: Patient disambiguation (confidence-based)
+    - STAGE 3: Query classification
+    - STAGE 4: PII masking
+    - STAGE 5: Query embedding
+    - STAGE 6: Retrieval (STRICT patient filtering)
+    - STAGE 7: Reranking
+    - STAGE 8: LLM streaming
+    - STAGE 9: Token restoration + PII validation
+    - STAGE 10: Query counter + context update
+    
+    Response: Stream of NDJSON events
+    - ambiguity: Patient needs selection
+    - metadata: Chat status, citations, query context
+    - token: Streamed LLM tokens
+    - completion: Final answer + stats
+    - error: Error details
+    
+    Rate Limit: 30/minute per user
+    """
+    import uuid
+    from schema.ragSchema import QueriedPatient, ChatStatus, PatientContext, StreamAmbiguityEvent
+    
+    start_time = time.time()
+    chat_id = query_input.chat_id
+    query_text = query_input.query
+    section_filter = query_input.section_filter
+    top_k = min(query_input.top_k or 5, 10)
+    
+    logger.info(
+        f"RAG v4.0 stream: chat={chat_id}, user={current_user}, "
+        f"query_len={len(query_text)}"
+    )
+    
+    async def stream_generator():
+        """Generator yielding NDJSON events."""
+        try:
+            # ================================================================
+            # STAGE 0: Load Session Context
+            # ================================================================
+            logger.info("STAGE 0: Loading session context...")
+            try:
+                session_context = await session_context_manager.load_or_create_context(
+                    chat_id=chat_id,
+                    user_id=current_user
+                )
+                
+                # Check if chat is full (10/10 queries)
+                if session_context.is_full:
+                    yield json.dumps({
+                        "type": "chat_full",
+                        "query_count": session_context.query_count,
+                        "query_limit": 10,
+                        "message": "Chat has reached maximum queries (10). Start a new chat to continue."
+                    }).encode() + b"\n"
+                    return
+                
+            except Exception as e:
+                logger.error(f"Stage 0 failed: {str(e)}")
+                yield json.dumps({
+                    "type": "error",
+                    "stage": "session_context",
+                    "message": "Failed to load chat context"
+                }).encode() + b"\n"
+                return
+            
+            # ================================================================
+            # STAGE 1: Patient Extraction (spaCy NER + Fuzzy Match)
+            # ================================================================
+            logger.info("STAGE 1: Patient extraction...")
+            queried_patients = []
+            selected_patient_id = query_input.patient_id
+            
+            try:
+                lookup_result = await patient_lookup_service.extract_and_match(
+                    query=query_text,
+                    user_id=current_user,
+                    session_context=session_context
+                )
+                
+                queried_patients = [
+                    {
+                        "name": m.patient_name,
+                        "patient_id": m.patient_id,
+                        "confidence": m.confidence,
+                        "match_type": m.match_type
+                    }
+                    for m in lookup_result.matches
+                ]
+                
+                logger.info(f"Extracted {len(queried_patients)} potential patients")
+                
+            except Exception as e:
+                logger.warning(f"Patient extraction failed: {str(e)}")
+                queried_patients = []
+            
+            # ================================================================
+            # STAGE 2: Patient Disambiguation
+            # ================================================================
+            if lookup_result and lookup_result.needs_disambiguation and not selected_patient_id:
+                logger.info("STAGE 2: Signaling ambiguity - awaiting user selection...")
+                
+                # Emit ambiguity event, frontend will show disambiguation modal
+                yield json.dumps({
+                    "type": "ambiguity",
+                    "matches": queried_patients,
+                    "please_select": True,
+                    "message": "Multiple patients found. Please select which patient this query refers to."
+                }).encode() + b"\n"
+                
+                # For now, select highest confidence if > 0.85, else wait
+                if queried_patients and queried_patients[0]["confidence"] > 0.85:
+                    selected_patient_id = queried_patients[0]["patient_id"]
+                    logger.info(f"Auto-selected patient (confidence={queried_patients[0]['confidence']})")
+                else:
+                    logger.warning("Ambiguity requires user selection - would block here in async mode")
+                    # In streaming context, we'd typically wait for user input via WebSocket
+                    # For now, proceed with highest confidence or return error
+                    if not queried_patients:
+                        yield json.dumps({
+                            "type": "error",
+                            "stage": "patient_disambiguation",
+                            "message": "Could not determine which patient this query refers to."
+                        }).encode() + b"\n"
+                        return
+                    selected_patient_id = queried_patients[0]["patient_id"]
+            
+            if not selected_patient_id and queried_patients:
+                selected_patient_id = queried_patients[0]["patient_id"]
+            
+            # Validate patient ownership (RLS check implicit via retrieval)
+            if not selected_patient_id:
+                yield json.dumps({
+                    "type": "error",
+                    "stage": "patient_validation",
+                    "message": "Patient ID required for query processing"
+                }).encode() + b"\n"
+                return
+            
+            # ================================================================
+            # STAGE 3: Query Classification
+            # ================================================================
+            logger.info("STAGE 3: Query classification...")
+            try:
+                query_type = query_classifier.classify(query_text)
+            except Exception as e:
+                logger.warning(f"Query classification failed: {str(e)}")
+                query_type = "PATIENT_SPECIFIC"
+            
+            # ================================================================
+            # STAGE 4: PII Masking
+            # ================================================================
+            logger.info("STAGE 4: PII masking...")
+            try:
+                masked_query, pii_registry = pii_masking_service.mask_text(query_text)
+            except Exception as e:
+                logger.warning(f"PII masking failed: {str(e)}")
+                masked_query = query_text
+                pii_registry = {}
+            
+            # ================================================================
+            # STAGE 5: Query Embedding
+            # ================================================================
+            logger.info("STAGE 5: Query embedding...")
+            try:
+                query_embedding = await embed_single(masked_query)
+                if not query_embedding or len(query_embedding) != 768:
+                    raise Exception("Invalid embedding dimension")
+            except Exception as e:
+                logger.error(f"Embedding failed: {str(e)}")
+                yield json.dumps({
+                    "type": "error",
+                    "stage": "embedding",
+                    "message": "Failed to process query embedding"
+                }).encode() + b"\n"
+                return
+            
+            # ================================================================
+            # STAGE 6: CRITICAL - Controlled Retrieval (Strict Patient Filtering)
+            # ================================================================
+            logger.info(f"STAGE 6: Retrieval with STRICT patient_ids filtering...")
+            try:
+                # GUARDRAIL: patient_ids MUST be explicit, never null
+                retrieval_start = time.time()
+                retrieved = await retrieve_chunks(
+                    user_id=current_user,
+                    patient_id=selected_patient_id,  # EXPLICIT, never null
+                    query_embedding=query_embedding,
+                    top_k=50,
+                    section_filter=section_filter,
+                )
+                retrieval_duration_ms = int((time.time() - retrieval_start) * 1000)
+                
+                logger.info(f"Retrieved {len(retrieved)} chunks in {retrieval_duration_ms}ms")
+                
+            except Exception as e:
+                logger.error(f"Retrieval failed: {str(e)}")
+                yield json.dumps({
+                    "type": "error",
+                    "stage": "retrieval",
+                    "message": "No matching medical records found"
+                }).encode() + b"\n"
+                return
+            
+            if not retrieved:
+                yield json.dumps({
+                    "type": "completion",
+                    "answer": "No matching medical records found for this query.",
+                    "citations": [],
+                    "confidence": 0.0,
+                    "tokens_used": 0,
+                    "processing_time_ms": int((time.time() - start_time) * 1000)
+                }).encode() + b"\n"
+                return
+            
+            # ================================================================
+            # STAGE 7: Reranking
+            # ================================================================
+            logger.info("STAGE 7: Reranking...")
+            try:
+                reranking_start = time.time()
+                retrieved_dicts = [
+                    {
+                        "chunk_id": r.chunk_id,
+                        "note_id": r.note_id,
+                        "section": r.section,
+                        "text": r.text,
+                        "final_score": r.final_score,
+                        "timestamp": r.timestamp,
+                    }
+                    for r in retrieved
+                ]
+                reranked = await rerank_chunks(
+                    query=masked_query,
+                    chunks=retrieved_dicts,
+                    top_k=top_k,
+                )
+                reranking_duration_ms = int((time.time() - reranking_start) * 1000)
+            except Exception as e:
+                logger.warning(f"Reranking failed: {str(e)}")
+                reranked = retrieved[:top_k]
+                reranking_duration_ms = 0
+            
+            logger.info(f"Reranked to {len(reranked)} chunks")
+            
+            # ================================================================
+            # Emit Metadata Event (Citations + Chat Status + Patient Context)
+            # ================================================================
+            citations_data = [
+                {
+                    "chunk_id": r.chunk_id,
+                    "note_id": r.note_id,
+                    "section": r.section,
+                    "timestamp": r.timestamp if hasattr(r, 'timestamp') else None,
+                    "score": r.reranking_score if hasattr(r, 'reranking_score') else r.final_score,
+                }
+                for r in reranked
+            ]
+            
+            chat_status = {
+                "query_count": session_context.query_count + 1,  # Will be incremented
+                "is_full": (session_context.query_count + 1) >= 10,
+                "query_limit": 10
+            }
+            
+            yield json.dumps({
+                "type": "metadata",
+                "citations": citations_data,
+                "retrieval_count": len(retrieved),
+                "chat_status": chat_status,
+                "queried_patients": queried_patients,
+                "patient_context": {
+                    "auto_selected": not lookup_result or not lookup_result.needs_disambiguation,
+                    "patient_id": selected_patient_id,
+                    "confidence": queried_patients[0]["confidence"] if queried_patients else 0.0
+                },
+                "timestamps": {
+                    "start": start_time,
+                    "retrieval_duration_ms": retrieval_duration_ms,
+                    "reranking_duration_ms": reranking_duration_ms
+                }
+            }).encode() + b"\n"
+            
+            # ================================================================
+            # STAGE 8: LLM Streaming Response
+            # ================================================================
+            logger.info("STAGE 8: Streaming LLM response...")
+            chunk_dicts = [
+                {
+                    "chunk_id": r.chunk_id,
+                    "note_id": r.note_id,
+                    "section": r.section,
+                    "text": r.text,
+                    "reranking_score": r.reranking_score if hasattr(r, 'reranking_score') else 0.5,
+                }
+                for r in reranked
+            ]
+            
+            tokens_used = 0
+            full_answer = ""
+            
+            try:
+                async for token in stream_response(
+                    query=masked_query,
+                    context_chunks=chunk_dicts,
+                    patient_info={"patient_id": selected_patient_id}
+                ):
+                    full_answer += token
+                    tokens_used += 1
+                    yield json.dumps({
+                        "type": "token",
+                        "token": token
+                    }).encode() + b"\n"
+            except Exception as e:
+                logger.error(f"LLM streaming failed: {str(e)}")
+                yield json.dumps({
+                    "type": "error",
+                    "stage": "llm",
+                    "message": "Error during response generation"
+                }).encode() + b"\n"
+                return
+            
+            # ================================================================
+            # STAGE 9: Token Restoration + PII Leak Detection
+            # ================================================================
+            logger.info("STAGE 9: Post-processing...")
+            try:
+                restored_answer = restore_response(full_answer, pii_registry)
+            except Exception as e:
+                logger.warning(f"Token restoration failed: {str(e)}")
+                restored_answer = full_answer
+            
+            # ================================================================
+            # STAGE 10: Query Counter Update + Context Update + Audit Logging
+            # ================================================================
+            logger.info("STAGE 10: Finalizing...")
+            try:
+                # Increment query counter
+                new_query_count = await session_context_manager.increment_query_count(chat_id)
+                
+                # Update referenced patients
+                if selected_patient_id:
+                    await session_context_manager.update_referenced_patients(
+                        chat_id=chat_id,
+                        new_patient_ids=[selected_patient_id] + (session_context.referenced_patient_ids or [])
+                    )
+                
+                # Audit logging
+                await log_rag_query(
+                    user_id=current_user,
+                    patient_id=selected_patient_id,
+                    query_text=masked_query,
+                    retrieval_data={"count": len(retrieved), "duration_ms": retrieval_duration_ms},
+                    reranking_data={"count": len(reranked), "duration_ms": reranking_duration_ms},
+                    llm_data={
+                        "model": "mixtral-8x7b-32768",
+                        "tokens_used": tokens_used,
+                        "duration_ms": int((time.time() - start_time) * 1000)
+                    },
+                    response_data={
+                        "confidence": 0.8,  # Example, calculate actual
+                        "citations": [c for c in citations_data]
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Post-processing failed: {str(e)}")
+            
+            # Emit completion event
+            total_duration_ms = int((time.time() - start_time) * 1000)
+            
+            yield json.dumps({
+                "type": "completion",
+                "answer": restored_answer,
+                "citations": citations_data,
+                "confidence": 0.8,  # Calculate properly
+                "tokens_used": tokens_used,
+                "processing_time_ms": total_duration_ms,
+                "chat_status": {
+                    "query_count": new_query_count if 'new_query_count' in locals() else session_context.query_count + 1,
+                    "is_full": (new_query_count if 'new_query_count' in locals() else session_context.query_count + 1) >= 10,
+                    "query_limit": 10
+                }
+            }).encode() + b"\n"
+            
+            logger.info(f"✅ RAG v4.0 stream complete: duration={total_duration_ms}ms, tokens={tokens_used}")
+        
+        except Exception as e:
+            logger.error(f"❌ Stream error: {str(e)}", exc_info=True)
+            yield json.dumps({
+                "type": "error",
+                "message": str(e)
+            }).encode() + b"\n"
+    
+    return StreamingResponse(
+        stream_generator(),
+        media_type="application/x-ndjson"
+    )
 
 
 @router.post("/rag", response_model=RAGQueryResponse)

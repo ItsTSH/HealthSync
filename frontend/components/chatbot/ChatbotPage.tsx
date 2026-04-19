@@ -1,21 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import {
-  ChatInput,
-  ChatMessage,
-  MessageContent,
-  MessageGroup,
-  ChatBubble,
-} from "@llamaindex/chat-ui"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth/AuthContext"
-import { usePatientContext } from "@/components/patients/PatientContext"
 import { toast } from "sonner"
-import { Loader2, AlertCircle, Check, Copy, RefreshCw } from "lucide-react"
+import { Loader2, AlertCircle, Plus, Menu, X, RefreshCw } from "lucide-react"
 import { Card } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import axios from "axios"
 import {
   ErrorType,
   parseAPIError,
@@ -23,12 +13,23 @@ import {
   getErrorMessage,
 } from "@/lib/errorHandling"
 
+// Import new v4.0 components and hooks
+import { useChats } from "@/hooks/useChats"
+import { useChat } from "@/hooks/useChat"
+import { ChatSidebar } from "./ChatSidebar"
+import { QueryCounter } from "./QueryCounter"
+import { SystemFeedback } from "./SystemFeedback"
+import { AmbiguityResolver } from "./AmbiguityResolver"
+import { ChatFullModal } from "./ChatFullModal"
+
+// Interfaces
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
   citations?: Citation[]
   confidence?: number
+  queried_patients?: QueriedPatient[]
   timestamp: Date
 }
 
@@ -40,11 +41,39 @@ interface Citation {
   score: number
 }
 
+interface QueriedPatient {
+  name: string
+  patient_id: string
+  confidence: number
+  match_type: "exact" | "fuzzy" | "pronoun_resolution"
+}
+
 interface StreamEvent {
-  type: "metadata" | "token" | "completion" | "error"
+  type:
+    | "metadata"
+    | "token"
+    | "completion"
+    | "error"
+    | "ambiguity"
+    | "chat_full"
   token?: string
   citations?: Citation[]
   retrieval_count?: number
+  reranked_count?: number
+  query_type?: string
+  is_multi_patient?: boolean
+  queried_patients?: QueriedPatient[]
+  match_type?: string
+  matches?: QueriedPatient[]
+  chat_status?: {
+    query_count: number
+    is_full: boolean
+    referenced_patient_ids: string[]
+  }
+  patient_context?: {
+    patient_id: string
+    confidence: number
+  }
   answer?: string
   confidence?: number
   tokens_used?: number
@@ -55,51 +84,111 @@ interface StreamEvent {
 
 export function ChatbotPage() {
   const { session } = useAuth()
-  const { patients } = usePatientContext()
-  const [selectedPatient, setSelectedPatient] = useState<any>(patients[0] || null)
+
+  // Multi-chat state
+  const { chats, isLoading: chatsLoading, createChat, deleteChat } = useChats()
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const { chat: currentChat, isLoading: chatLoading, loadChat } = useChat()
+
+  // Messages & streaming
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [currentStreamAnswer, setCurrentStreamAnswer] = useState("")
   const [currentCitations, setCurrentCitations] = useState<Citation[]>([])
-  const [profile, setProfile] = useState<any>(null)
+  const [currentQueriedPatients, setCurrentQueriedPatients] = useState<
+    QueriedPatient[]
+  >([])
+  const [currentConfidence, setCurrentConfidence] = useState(0)
+  const [systemStatus, setSystemStatus] = useState<string>("idle")
+
+  // v4.0+ states
+  const [queryCount, setQueryCount] = useState(0)
+  const [showChatFullModal, setShowChatFullModal] = useState(false)
+  const [showAmbiguityModal, setShowAmbiguityModal] = useState(false)
+  const [ambiguousMatches, setAmbiguousMatches] = useState<QueriedPatient[]>([])
+  const [selectedPatientForDisambiguation, setSelectedPatientForDisambiguation] =
+    useState<string | null>(null)
+
+  // Error & retry
   const [error, setError] = useState<string | null>(null)
   const [canRetry, setCanRetry] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
-  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
-  const [currentConfidence, setCurrentConfidence] = useState(0)
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>()
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(
+    null
+  )
+
+  // UI
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
+  // Auto-scroll
+  const scrollToBottom = useCallback(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight
     }
-  }
-
-  // Update selectedPatient when patients change
-  useEffect(() => {
-    if (patients.length > 0 && !selectedPatient) {
-      setSelectedPatient(patients[0])
-    }
-  }, [patients, selectedPatient])
+  }, [])
 
   useEffect(() => {
     scrollTimeoutRef.current = setTimeout(scrollToBottom, 100)
     return () => {
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
     }
-  }, [messages, currentStreamAnswer])
+  }, [messages, currentStreamAnswer, scrollToBottom])
 
+  // Load chat when currentChatId changes
+  useEffect(() => {
+    if (currentChatId) {
+      loadChat(currentChatId)
+      setMessages([])
+      setCurrentStreamAnswer("")
+      setCurrentCitations([])
+      setCurrentQueriedPatients([])
+      setSystemStatus("idle")
+    }
+  }, [currentChatId, loadChat])
+
+  // Create new chat
+  const handleNewChat = async () => {
+    const newChat = await createChat("New Chat")
+    if (newChat) {
+      setCurrentChatId(newChat.id)
+      setMessages([])
+      setQueryCount(0)
+    }
+  }
+
+  // Handle ambiguity resolution
+  const handleResolveAmbiguity = (patientId: string) => {
+    setSelectedPatientForDisambiguation(patientId)
+    setShowAmbiguityModal(false)
+  }
+
+  // Main send message handler
   const handleSendMessage = async (text: string, _retryCount = 0) => {
-    if (!text.trim() || !selectedPatient) {
-      toast.error("Please select a patient and enter a message")
+    if (!text.trim()) {
+      toast.error("Please enter a message")
       return
     }
 
-    // Max 2 retries
+    if (!currentChatId) {
+      const newChat = await createChat()
+      if (newChat) {
+        setCurrentChatId(newChat.id)
+      } else {
+        toast.error("Failed to create chat")
+        return
+      }
+    }
+
+    if (queryCount >= 10) {
+      setShowChatFullModal(true)
+      toast.error("This chat has reached its 10-query limit")
+      return
+    }
+
     if (_retryCount > 1) {
       const errorMsg =
         "Failed to get response after multiple attempts. Please try again later."
@@ -109,7 +198,6 @@ export function ChatbotPage() {
       return
     }
 
-    // Add user message (only on first attempt)
     if (_retryCount === 0) {
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
@@ -117,30 +205,30 @@ export function ChatbotPage() {
         content: text,
         timestamp: new Date(),
       }
-
       setMessages((prev) => [...prev, userMessage])
       setLastFailedMessage(text)
     }
 
     setInputValue("")
-    setIsLoading(true)
+    setIsStreaming(true)
     setError(null)
     setCanRetry(false)
     setRetryCount(_retryCount)
     setCurrentStreamAnswer("")
     setCurrentCitations([])
+    setCurrentQueriedPatients([])
     setCurrentConfidence(0)
+    setSystemStatus("analyzing")
 
     try {
-      // Validate API URL
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
       if (!session?.access_token) {
         throw new Error(
           "Authentication token not available. Please log in again."
         )
       }
 
-      // Make API request with proper error handling
       let response: Response
       try {
         response = await fetch(`${apiUrl}/search/rag-stream`, {
@@ -150,11 +238,12 @@ export function ChatbotPage() {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
+            chat_id: currentChatId,
             query: text,
-            patient_id: selectedPatient.id,
+            patient_id: selectedPatientForDisambiguation || undefined,
             top_k: 5,
           }),
-          signal: AbortSignal.timeout(60000), // 60 second timeout
+          signal: AbortSignal.timeout(60000),
         })
       } catch (err) {
         if (err instanceof Error) {
@@ -194,7 +283,6 @@ export function ChatbotPage() {
         throw new Error(errorMsg)
       }
 
-      // Handle streaming response
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let buffer = ""
@@ -206,16 +294,16 @@ export function ChatbotPage() {
         throw new Error("Response body is not readable")
       }
 
+      setSystemStatus("retrieving")
+
       try {
         while (true) {
           const { done, value } = await reader.read()
-
           if (done) break
 
           buffer += decoder.decode(value, { stream: true })
           const lines = buffer.split("\n")
 
-          // Process all complete lines
           for (let i = 0; i < lines.length - 1; i++) {
             const line = lines[i].trim()
             if (!line) continue
@@ -225,14 +313,34 @@ export function ChatbotPage() {
 
               switch (event.type) {
                 case "metadata":
+                  setSystemStatus("generating")
+                  if (event.chat_status) {
+                    setQueryCount(event.chat_status.query_count)
+                    if (event.chat_status.is_full) {
+                      setShowChatFullModal(true)
+                    }
+                  }
                   setCurrentCitations(event.citations || [])
+                  if (event.queried_patients) {
+                    setCurrentQueriedPatients(event.queried_patients)
+                  }
                   break
+
+                case "ambiguity":
+                  setAmbiguousMatches(event.matches || [])
+                  setShowAmbiguityModal(true)
+                  reader.cancel()
+                  setSystemStatus("awaiting_user")
+                  toast.info("Please select which patient you meant")
+                  return
 
                 case "token":
                   setCurrentStreamAnswer((prev) => prev + (event.token || ""))
+                  setSystemStatus("generating")
                   break
 
                 case "completion":
+                  setSystemStatus("complete")
                   if (!streamAssistantMessage) {
                     streamAssistantMessage = {
                       id: `msg-${Date.now()}-assistant`,
@@ -240,6 +348,7 @@ export function ChatbotPage() {
                       content: event.answer || currentStreamAnswer,
                       citations: currentCitations,
                       confidence: event.confidence,
+                      queried_patients: currentQueriedPatients,
                       timestamp: new Date(),
                     }
                     setMessages((prev) => [...prev, streamAssistantMessage!])
@@ -247,19 +356,33 @@ export function ChatbotPage() {
                     streamAssistantMessage.content =
                       event.answer || currentStreamAnswer
                     streamAssistantMessage.confidence = event.confidence
+                    streamAssistantMessage.queried_patients =
+                      currentQueriedPatients
                     setMessages((prev) => [...prev])
                   }
-                  setCurrentConfidence(event.confidence || 0)
 
-                  // Save chat to recent chats
-                  saveRecentChat(text, event.answer || currentStreamAnswer)
+                  if (event.chat_status) {
+                    setQueryCount(event.chat_status.query_count)
+                    if (event.chat_status.is_full) {
+                      setShowChatFullModal(true)
+                    }
+                  }
+                  setCurrentConfidence(event.confidence || 0)
+                  break
+
+                case "chat_full":
+                  setShowChatFullModal(true)
                   break
 
                 case "error":
-                  hasError = true
-                  errorOccurred = new Error(
-                    event.message || `${event.error}: An error occurred`
-                  )
+                  if (event.error === "CHAT_FULL") {
+                    setShowChatFullModal(true)
+                  } else {
+                    hasError = true
+                    errorOccurred = new Error(
+                      event.message || `${event.error}: An error occurred`
+                    )
+                  }
                   break
               }
             } catch (parseError) {
@@ -271,11 +394,9 @@ export function ChatbotPage() {
             }
           }
 
-          // Keep incomplete line in buffer
           buffer = lines[lines.length - 1]
         }
 
-        // Check if error occurred during streaming
         if (hasError && errorOccurred) {
           throw errorOccurred
         }
@@ -284,7 +405,6 @@ export function ChatbotPage() {
         throw streamError
       }
 
-      // Add final assistant message if not already added
       if (!streamAssistantMessage && currentStreamAnswer) {
         const assistantMessage: Message = {
           id: `msg-${Date.now()}-assistant`,
@@ -292,21 +412,19 @@ export function ChatbotPage() {
           content: currentStreamAnswer,
           citations: currentCitations,
           confidence: currentConfidence,
+          queried_patients: currentQueriedPatients,
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, assistantMessage])
-
-        // Save chat to recent chats
-        saveRecentChat(text, currentStreamAnswer)
       }
 
       toast.success("Response received successfully")
       setLastFailedMessage(null)
+      setSystemStatus("idle")
     } catch (err) {
       const errorMessage = getErrorMessage(err)
       setError(errorMessage)
-      
-      // Determine if we can retry
+
       if (
         errorMessage.includes("timeout") ||
         errorMessage.includes("network")
@@ -316,8 +434,9 @@ export function ChatbotPage() {
 
       toast.error(errorMessage)
       console.error("Chat error:", err)
+      setSystemStatus("error")
     } finally {
-      setIsLoading(false)
+      setIsStreaming(false)
       setCurrentStreamAnswer("")
     }
   }
@@ -328,218 +447,256 @@ export function ChatbotPage() {
     }
   }
 
-  const saveRecentChat = (query: string, response: string) => {
-    try {
-      const chatTitle = query.substring(0, 40) + (query.length > 40 ? "..." : "")
-      const chatId = `chat-${Date.now()}`
-      
-      const newChat = {
-        id: chatId,
-        title: chatTitle,
-        query: query,
-        patientId: selectedPatient?.id,
-        patientName: selectedPatient?.name,
-        timestamp: new Date().toISOString(),
-      }
-
-      const stored = localStorage.getItem("recent_chats")
-      const chats = stored ? JSON.parse(stored) : []
-      
-      // Add new chat to the beginning
-      const updated = [newChat, ...chats].slice(0, 10) // Keep last 10 chats
-      localStorage.setItem("recent_chats", JSON.stringify(updated))
-    } catch (error) {
-      console.error("Error saving recent chat:", error)
-    }
-  }
-
-  if (!selectedPatient) {
+  if (!currentChatId) {
     return (
-      <div className="flex flex-1 items-center justify-center min-h-screen p-4">
-        <Card className="w-full max-w-md border-border shadow-md">
-          <div className="p-6 text-center">
-            <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h2 className="text-lg font-semibold text-foreground mb-2">
-              No Patient Selected
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Please select a patient from the sidebar to start the conversation.
-            </p>
-          </div>
-        </Card>
+      <div className="flex flex-col h-full w-full items-center justify-center gap-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Welcome to HealthSync</h2>
+          <p className="text-muted-foreground mb-6">
+            Create a new chat to get started
+          </p>
+          <Button size="lg" onClick={handleNewChat} disabled={chatsLoading}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create New Chat
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] w-full max-w-6xl mx-auto gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Medical Assistant
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Ask questions about {selectedPatient.name}'s medical records
-          </p>
-        </div>
+    <div className="flex h-full w-full gap-0 overflow-hidden">
+      {/* Sidebar */}
+      <div
+        className={`${
+          sidebarOpen ? "w-64" : "w-0"
+        } transition-all duration-300 border-r border-border flex-shrink-0 overflow-hidden`}
+      >
+        <ChatSidebar
+          chats={chats}
+          selectedChatId={currentChatId}
+          onSelectChat={setCurrentChatId}
+          onDeleteChat={deleteChat}
+          isLoading={chatsLoading}
+          onCreateChat={handleNewChat}
+        />
       </div>
 
-      {/* Messages Container */}
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 pb-4 px-2"
-      >
-        {messages.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-4xl mb-4">💬</div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Start a conversation
-            </h2>
-            <p className="text-muted-foreground max-w-sm">
-              Ask questions about medical history, diagnoses, medications, and
-              more. The AI will search through medical records to provide
-              accurate answers with citations.
-            </p>
-          </div>
-        )}
-
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
-            <div
-              className={`max-w-lg rounded-lg p-4 ${
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-foreground border border-border"
-              }`}
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-border p-4 flex items-center justify-between bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="md:hidden"
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {sidebarOpen ? (
+                <X className="w-4 h-4" />
+              ) : (
+                <Menu className="w-4 h-4" />
+              )}
+            </Button>
+            <div>
+              <h1 className="font-semibold text-foreground">
+                {currentChat?.title || "Chat"}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {currentChat?.title || "Loading..."}
+              </p>
+            </div>
+          </div>
 
-              {/* Citations */}
-              {message.citations && message.citations.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                  <p className="text-xs font-semibold mb-2 opacity-70">
-                    Sources:
-                  </p>
-                  <div className="space-y-1">
-                    {message.citations.map((citation, idx) => (
-                      <div
-                        key={`${citation.chunk_id}-${idx}`}
-                        className="text-xs p-2 bg-background/50 rounded border border-border/30"
-                      >
-                        <div className="font-medium">{citation.section}</div>
-                        <div className="opacity-70">
-                          Note: {citation.note_id}
-                        </div>
-                        {citation.score && (
-                          <div className="opacity-50 text-xs mt-1">
-                            Relevance: {(citation.score * 100).toFixed(0)}%
+          {/* Query Counter */}
+          <div className="flex items-center gap-4">
+            <QueryCounter queryCount={queryCount} isFull={queryCount >= 10} verbose={false} />
+          </div>
+        </div>
+
+        {/* Messages Container */}
+        <div
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto space-y-4 p-4 bg-background"
+        >
+          {messages.length === 0 && !error && systemStatus === "idle" && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="text-4xl mb-4">💬</div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                Start a conversation
+              </h2>
+              <p className="text-muted-foreground max-w-sm">
+                Ask questions about medical records, diagnoses, medications, and
+                more
+              </p>
+            </div>
+          )}
+
+          {/* System Feedback */}
+          {systemStatus !== "idle" && systemStatus !== "complete" && (
+            <SystemFeedback
+              type="loading"
+              message={`${systemStatus.charAt(0).toUpperCase()}${systemStatus.slice(1).replace(/_/g, " ")}...`}
+            />
+          )}
+
+          {error && (
+            <SystemFeedback
+              type="error"
+              message={error}
+              onDismiss={() => setError(null)}
+            />
+          )}
+
+          {/* Messages */}
+          {messages.map((msg) => (
+            <div key={msg.id} className="flex gap-2">
+              {msg.role === "user" ? (
+                <div className="flex justify-end w-full">
+                  <Card className="max-w-xl bg-primary text-primary-foreground rounded-lg">
+                    <div className="p-3">{msg.content}</div>
+                  </Card>
+                </div>
+              ) : (
+                <div className="flex justify-start w-full">
+                  <div className="max-w-xl">
+                    <Card className="bg-muted rounded-lg">
+                      <div className="p-3">{msg.content}</div>
+                    </Card>
+
+                    {/* Citations */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-2 text-xs text-muted-foreground space-y-1 ml-2">
+                        <div className="font-semibold">Sources:</div>
+                        {msg.citations.map((cite, i) => (
+                          <div key={i} className="truncate">
+                            • {cite.section} (confidence: {(cite.score * 100).toFixed(0)}%)
                           </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Queried Patients */}
+                    {msg.queried_patients && msg.queried_patients.length > 0 && (
+                      <div className="mt-2 text-xs text-muted-foreground ml-2">
+                        <div className="font-semibold">Patients:</div>
+                        {msg.queried_patients.map((p, i) => (
+                          <div key={i} className="truncate">
+                            • {p.name} ({(p.confidence * 100).toFixed(0)}%)
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Confidence */}
+                    {msg.confidence !== undefined && (
+                      <div className="mt-2 text-xs text-muted-foreground ml-2">
+                        Confidence: {(msg.confidence * 100).toFixed(0)}%
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
-
-              {/* Confidence & Metadata */}
-              {message.role === "assistant" && message.confidence && (
-                <div className="mt-2 flex items-center gap-2 text-xs opacity-70">
-                  <Check className="h-3 w-3" />
-                  Confidence: {(message.confidence * 100).toFixed(0)}%
-                </div>
-              )}
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Streaming response in progress */}
-        {isLoading && currentStreamAnswer && (
-          <div className="flex justify-start">
-            <div className="max-w-lg rounded-lg p-4 bg-secondary text-foreground border border-border">
-              <p className="text-sm whitespace-pre-wrap">{currentStreamAnswer}</p>
-              <Loader2 className="h-4 w-4 animate-spin mt-2" />
-            </div>
-          </div>
-        )}
-
-        {/* Loading state */}
-        {isLoading && !currentStreamAnswer && (
-          <div className="flex justify-start">
-            <div className="max-w-lg rounded-lg p-4 bg-secondary text-foreground border border-dashed border-border">
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <p className="text-sm">Searching medical records...</p>
+          {/* Current streaming answer */}
+          {isStreaming && currentStreamAnswer && (
+            <div className="flex justify-start w-full">
+              <div className="max-w-xl">
+                <Card className="bg-muted rounded-lg animate-pulse">
+                  <div className="p-3">{currentStreamAnswer}</div>
+                </Card>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Error message */}
-        {error && (
-          <div className="flex justify-start mb-4">
-            <div className="max-w-lg rounded-lg p-4 bg-destructive/10 text-destructive border border-destructive/30">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-semibold text-sm">Error</p>
-                  <p className="text-sm mt-1">{error}</p>
-                  {canRetry && (
-                    <Button
-                      onClick={handleRetry}
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 gap-2"
-                      disabled={isLoading}
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                      Retry
-                    </Button>
-                  )}
-                </div>
-              </div>
+          {isStreaming && !currentStreamAnswer && (
+            <div className="flex justify-start gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {systemStatus === "analyzing"
+                  ? "Analyzing your question..."
+                  : systemStatus === "retrieving"
+                    ? "Retrieving relevant information..."
+                    : systemStatus === "generating"
+                      ? "Generating response..."
+                      : "Processing..."}
+              </p>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-border pt-4 px-2">
-        <div className="flex gap-2">
-          <input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !isLoading) {
-                e.preventDefault()
-                handleSendMessage(inputValue)
-              }
-            }}
-            placeholder="Ask about medical records... (Shift+Enter for new line)"
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <Button
-            onClick={() => handleSendMessage(inputValue)}
-            disabled={isLoading || !inputValue.trim()}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Send"
-            )}
-          </Button>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+
+        {/* Input Area */}
+        <div className="border-t border-border p-4 bg-background">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  handleSendMessage(inputValue)
+                }
+              }}
+              placeholder="Ask a question about medical records..."
+              disabled={isStreaming || queryCount >= 10}
+              className="flex-1 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <Button
+              onClick={() => handleSendMessage(inputValue)}
+              disabled={isStreaming || !inputValue.trim() || queryCount >= 10}
+              size="sm"
+            >
+              {isStreaming ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send"
+              )}
+            </Button>
+
+            {canRetry && (
+              <Button
+                onClick={handleRetry}
+                disabled={isStreaming}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {queryCount >= 10 && (
+            <div className="mt-2 p-2 bg-destructive/10 text-destructive text-sm rounded">
+              This chat has reached its 10-query limit. Create a new chat to continue.
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Modals */}
+      <AmbiguityResolver
+        isOpen={showAmbiguityModal}
+        matches={ambiguousMatches}
+        onSelect={handleResolveAmbiguity}
+        onCancel={() => {
+          setShowAmbiguityModal(false)
+          setSystemStatus("idle")
+        }}
+      />
+
+      <ChatFullModal
+        isOpen={showChatFullModal}
+        onClose={() => setShowChatFullModal(false)}
+        onNewChat={handleNewChat}
+        near_full={queryCount >= 8 && queryCount < 10}
+      />
     </div>
   )
 }
+

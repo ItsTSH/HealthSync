@@ -44,6 +44,7 @@ colorama==0.4.6
 transformers==4.57.1
 torch==2.9.0
 scikit-learn==1.7.2
+spacy==3.7.2
 
 # Utils
 typer==0.20.0

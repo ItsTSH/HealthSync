@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from routers import searchRoutes, transcriptionRoutes, authRoutes, processingRoutes, ragRoutes
+from routers import searchRoutes, transcriptionRoutes, authRoutes, processingRoutes, ragRoutes, chatRoutes
 from core.config import get_cache_headers
 
 app = FastAPI(title="HealthSync API", version="v1.0.0-rag")
@@ -45,6 +45,9 @@ app.add_middleware(
 
 # NEW: RAG routes (semantic search + LLM synthesis)
 app.include_router(ragRoutes.router)
+
+# Chat management routes (v4.0+ multi-chat system)
+app.include_router(chatRoutes.router)
 
 # Core processing routes (includes async embedding)
 app.include_router(processingRoutes.router)
