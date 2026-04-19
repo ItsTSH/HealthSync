@@ -75,7 +75,7 @@ const items = [
     },
     {
         title: "Chatbot",
-        url: "#",
+        url: "/chatbot",
         icon: MessageCircle,
     },
 ]
@@ -91,6 +91,7 @@ export function AppSidebar() {
     
     const [profile, setProfile] = useState<any>(null);
     const [recentSessions, setRecentSessions] = useState<any[]>([]);
+    const [recentChats, setRecentChats] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [wasHoverExpanded, setWasHoverExpanded] = useState(false);
 
@@ -212,6 +213,19 @@ export function AppSidebar() {
         fetchRecentSessions();
     }, [session?.user?.id]);
 
+    // Load recent chats from localStorage
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('recent_chats');
+            if (stored) {
+                const chats = JSON.parse(stored).slice(0, 5); // Limit to 5
+                setRecentChats(chats);
+            }
+        } catch (error) {
+            console.error('Error loading recent chats:', error);
+        }
+    }, []);
+
     const displayName = profile?.full_name || profile?.username || 'Dr. User';
     const displayProfession = profile?.profession || 'Healthcare Professional';
 
@@ -304,6 +318,38 @@ export function AppSidebar() {
                             ) : (
                                 <div className="text-xs text-muted-foreground px-2 py-2">
                                     No recent sessions
+                                </div>
+                            )}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+                <Separator className="my-2" />
+                <SidebarGroup>
+                    <SidebarGroupLabel className="text-xs">Recent Chats</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {recentChats.length > 0 ? (
+                                recentChats.map((chat) => (
+                                    <SidebarMenuItem key={chat.id} className="py-0.5">
+                                        <SidebarMenuButton
+                                            asChild
+                                            className="h-auto py-1.5 px-2"
+                                            onClick={() => router.push(`/chatbot?session=${chat.id}`)}
+                                        >
+                                            <button className="flex flex-col items-start gap-0.5 w-full text-left">
+                                                <span className="text-xs font-medium truncate w-full">
+                                                    {chat.title}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {formatDate(chat.timestamp)}
+                                                </span>
+                                            </button>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))
+                            ) : (
+                                <div className="text-xs text-muted-foreground px-2 py-2">
+                                    No recent chats
                                 </div>
                             )}
                         </SidebarMenu>

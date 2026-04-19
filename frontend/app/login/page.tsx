@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,14 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const { session, loading: authLoading } = useAuth();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.push(redirect);
+    }
+  }, [session, authLoading, redirect, router]);
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
   const [error, setError] = useState<string>("");
@@ -80,13 +89,25 @@ export default function LoginPage() {
           <p className="text-muted-foreground mb-6">
             We've sent a login link to your email address. Click the link to complete your signin.
           </p>
-          <Button 
+          <Button
             onClick={() => setEmailSent(false)}
             variant="outline"
             className="w-full"
           >
             Back to login
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );

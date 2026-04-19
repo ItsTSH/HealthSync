@@ -11,7 +11,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !session) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
+      // Redirect unauthenticated users to landing page
+      router.push(`/?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [session, loading, pathname, router]);
 

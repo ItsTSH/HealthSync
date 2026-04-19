@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { Providers } from "./providers";
@@ -13,6 +13,12 @@ const interSans = Inter({
 const jetBrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +36,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${interSans.variable} ${jetBrainsMono.variable}  flex bg-secondary`}
+        className={`${interSans.variable} ${jetBrainsMono.variable} ${plusJakartaSans.variable} flex bg-secondary`}
       >
         <Providers defaultOpen={defaultOpen}>
           {children}
