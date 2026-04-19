@@ -9,7 +9,7 @@ export type PatientData = {
 }
 
 export type Record = {
-  id: string
+  noteID: string // UUID primary key from database
   createdAt: string
   patientName: string
   age: number
@@ -23,8 +23,15 @@ export type Record = {
   allergies: string | null
   medication: string | null
   diagnosis: string | null
-  status?: "pending" | "processing" | "completed" | "failed"
-  error?: string | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  error: string | null
+  user_id: string
+  gender?: string | null
+  chunking_version?: string | null
+  retrieval_version?: string | null
+  embedding_count?: number | null
+  pii_masked_at?: string | null
+  chat_id?: string | null
 }
 
 // Grouped patient data from backend records

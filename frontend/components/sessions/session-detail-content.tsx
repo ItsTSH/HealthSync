@@ -105,14 +105,14 @@ export default function SessionDetailContent({ note }: { note: Note }) {
     console.log("[handleConfirmSave] Starting save operation")
     
     try {
-      if (!editData || editData.id === undefined) {
+      if (!editData || editData.noteID === undefined) {
         console.error("[handleConfirmSave] Missing note ID")
         alert("Error: Note ID is missing")
         return
       }
 
       const prevNote = note
-      const noteId = editData.id as string
+      const noteId = editData.noteID as string
 
       console.log("[handleConfirmSave] Saving note:", noteId)
       console.log("[handleConfirmSave] Edit Data:", editData)
@@ -222,13 +222,13 @@ export default function SessionDetailContent({ note }: { note: Note }) {
   }
 
   const loadVersionHistory = useCallback(async () => {
-    if (!note.id || loadingVersions) return
+    if (!note.noteID || loadingVersions) return
 
-    console.log("[loadVersionHistory] Loading versions for note:", note.id)
+    console.log("[loadVersionHistory] Loading versions for note:", note.noteID)
     setLoadingVersions(true)
 
     try {
-      const fetchedVersions = await fetchNoteVersions(note.id)
+      const fetchedVersions = await fetchNoteVersions(note.noteID)
       console.log("[loadVersionHistory] Versions fetched:", fetchedVersions)
       setVersions(fetchedVersions)
     } catch (error) {
@@ -337,7 +337,7 @@ export default function SessionDetailContent({ note }: { note: Note }) {
                     onClick={() => {
                       console.log("[SessionDetailContent] Retrying note processing")
                       setIsLoading(true)
-                      retryNoteProcessing(note.id)
+                      retryNoteProcessing(note.noteID)
                         .then(() => {
                           setSaveMessage('Retry initiated. Processing will begin shortly.')
                         })
