@@ -82,12 +82,16 @@ interface StreamEvent {
   message?: string
 }
 
-export function ChatbotPage() {
+interface ChatbotPageProps {
+  initialChatId?: string
+}
+
+export function ChatbotPage({ initialChatId }: ChatbotPageProps = {}) {
   const { session } = useAuth()
 
   // Multi-chat state
   const { chats, isLoading: chatsLoading, createChat, deleteChat } = useChats()
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId || null)
   const { chat: currentChat, isLoading: chatLoading, loadChat } = useChat()
 
   // Messages & streaming
