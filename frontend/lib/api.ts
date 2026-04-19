@@ -38,7 +38,7 @@ export function groupNotesByPatient(notes: Note[]) {
       const mostRecent = sorted[0]
 
       return {
-        id: mostRecent.id, // Use note ID as unique identifier
+        id: mostRecent.noteID, // Use note ID as unique identifier
         patientName,
         patientID: patientName, // Display patient name as ID
         dateTime: new Date(mostRecent.createdAt),
