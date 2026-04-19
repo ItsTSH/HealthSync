@@ -1,0 +1,26 @@
+{
+  "extraKnownMarketplaces": {
+    "local": {
+      "source": {
+        "source": "directory",
+        "path": "C:/Users/Tejinder 2/Documents/Projects/Major Project/HealthSync (Sem 7)/Sem 8/claude-code-toolkit-main/plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "system@local": true,
+    "workflow@local": true,
+    "development@local": true,
+    "transition@local": true,
+    "memory@local": true,
+    "setup@local": true,
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "autoUpdatesChannel": "latest"
+}

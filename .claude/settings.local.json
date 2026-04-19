@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"healthcare SaaS medical documentation professional clean trustworthy\" --design-system -p \"HealthSync\" -f markdown)",
+      "Bash(python -m spacy download en_core_web_sm)",
+      "Bash(pip install *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "tinyfish"
+  ],
+  "enabledPlugins": {}
+}
