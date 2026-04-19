@@ -26,6 +26,9 @@ yarn-error.log*
 **/chroma_db
 
 # Supabase
-supabase/.temp/
-supabase/.branches/
-supabase/.cache/
+frontend/supabase/.temp/
+frontend/supabase/.branches/
+frontend/supabase/.cache/
+
+# Git worktrees (isolated development workspaces)
+.worktrees/
