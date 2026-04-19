@@ -8,7 +8,7 @@
  * Maps directly to 'notes' table columns
  */
 export type Note = {
-  id: string // uuid, auto-generated primary key (gen_random_uuid())
+  noteID: string // uuid, primary key from database (gen_random_uuid())
   createdAt: string // timestamp ISO string
   patientName: string // text, required
   age: number // smallint, required
@@ -22,8 +22,15 @@ export type Note = {
   allergies: string | null // text, nullable
   medication: string | null // text, nullable
   diagnosis: string | null // text, nullable
+  user_id: string // uuid, required for RLS policy
   status: 'pending' | 'processing' | 'completed' | 'failed' // text, default 'pending'
   error: string | null // text, nullable - stores error message if status is 'failed'
+  gender?: string | null // optional gender field
+  chunking_version?: string | null
+  retrieval_version?: string | null
+  embedding_count?: number | null
+  pii_masked_at?: string | null
+  chat_id?: string | null
 }
 
 /**
@@ -42,7 +49,7 @@ export type NoteVersion = {
  * Form data for creating/updating notes
  * Used when submitting from the frontend
  */
-export type NoteFormData = Omit<Note, 'id' | 'createdAt' | 'status' | 'error'>
+export type NoteFormData = Omit<Note, 'noteID' | 'createdAt' | 'status' | 'error' | 'user_id' | 'chunking_version' | 'retrieval_version' | 'embedding_count' | 'pii_masked_at' | 'chat_id'>
 
 /**
  * Temporary note for optimistic UI updates

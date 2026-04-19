@@ -6,10 +6,10 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from routers import searchRoutes, transcriptionRoutes, authRoutes, processingRoutes
+from routers import searchRoutes, transcriptionRoutes, authRoutes, processingRoutes, ragRoutes, chatRoutes
 from core.config import get_cache_headers
 
-app = FastAPI(title="HealthSync API", version="v0.2.0")
+app = FastAPI(title="HealthSync API", version="v1.0.0-rag")
 
 # Rate limiting configuration
 limiter = Limiter(key_func=get_remote_address)
@@ -43,10 +43,16 @@ app.add_middleware(
     minimum_size=1000  # Only compress responses larger than 1KB
 )
 
-# Core processing routes (NEW: AI layer)
+# NEW: RAG routes (semantic search + LLM synthesis)
+app.include_router(ragRoutes.router)
+
+# Chat management routes (v4.0+ multi-chat system)
+app.include_router(chatRoutes.router)
+
+# Core processing routes (includes async embedding)
 app.include_router(processingRoutes.router)
 
-# Search routes (updated for Supabase + RAG)
+# Search routes (legacy, replaced by RAG)
 app.include_router(searchRoutes.router)
 
 # Transcription & extraction (unchanged)

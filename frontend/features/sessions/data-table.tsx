@@ -137,8 +137,8 @@ export function DataTable<TData, TValue>({
                         className="text-base py-3 px-3 cursor-pointer"
                         onClick={() => {
                           const note = row.original as Note
-                          if (note.id) {
-                            router.push(`/sessions/${note.id}`)
+                          if (note.noteID) {
+                            router.push(`/sessions/${note.noteID}`)
                           }
                         }}
                       >
@@ -148,8 +148,8 @@ export function DataTable<TData, TValue>({
                         className="text-base py-3 px-3 cursor-pointer"
                         onClick={() => {
                           const note = row.original as Note
-                          if (note.id) {
-                            navigator.clipboard.writeText(note.id)
+                          if (note.noteID) {
+                            navigator.clipboard.writeText(note.noteID)
                           }
                         }}
                       >

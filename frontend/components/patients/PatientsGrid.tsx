@@ -266,7 +266,7 @@ const PatientsGrid = React.memo(function PatientsGrid() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {paginatedPatients.map((p) => (
-                <PatientCard key={p.id} patient={p} />
+                <PatientCard key={p.patientUUID} patient={p} />
               ))}
             </div>
 

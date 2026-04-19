@@ -182,17 +182,17 @@ export default function SessionDetailContent({ note }: { note: Note }) {
   }
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!note.id) {
+    if (!note.noteID) {
       console.error("[handleConfirmDelete] Missing note ID")
       alert("Error: Note ID is missing")
       return
     }
 
-    console.log("[handleConfirmDelete] Starting delete for note:", note.id)
+    console.log("[handleConfirmDelete] Starting delete for note:", note.noteID)
 
     setIsLoading(true)
     try {
-      await deleteNote(note.id)
+      await deleteNote(note.noteID)
       console.log("[handleConfirmDelete] Delete successful")
       alert("Session deleted successfully!")
       router.push("/sessions")
@@ -204,7 +204,7 @@ export default function SessionDetailContent({ note }: { note: Note }) {
     } finally {
       setIsLoading(false)
     }
-  }, [note.id, router])
+  }, [note.noteID, router])
 
   const handleFieldChange = (field: string, value: string) => {
     console.log(`[SessionDetailContent] Field changed: ${field} = ${value.substring(0, 50)}...`)
@@ -238,7 +238,7 @@ export default function SessionDetailContent({ note }: { note: Note }) {
     } finally {
       setLoadingVersions(false)
     }
-  }, [note.id, loadingVersions])
+  }, [note.noteID, loadingVersions])
 
   const displayValue = (value: any) => value ?? "N/A"
 
@@ -264,7 +264,7 @@ export default function SessionDetailContent({ note }: { note: Note }) {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Medical Note</h1>
               <p className="text-sm text-muted-foreground">
-                Note ID: {note.id} • {note.status === 'failed' ? (
+                Note ID: {note.noteID} • {note.status === 'failed' ? (
                   <Badge variant="destructive">{getStatusDisplay(note.status)}</Badge>
                 ) : note.status === 'completed' ? (
                   <Badge variant="default">{getStatusDisplay(note.status)}</Badge>

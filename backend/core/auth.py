@@ -115,3 +115,10 @@ async def get_current_user(user_id: str = Depends(verify_token)):
             detail="Not authenticated",
         )
     return user_id
+
+
+async def get_current_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Extract and return the raw JWT token for use with Supabase client"""
+    # Verify the token is valid
+    _ = await verify_token(credentials)  # This will raise if invalid
+    return credentials.credentials

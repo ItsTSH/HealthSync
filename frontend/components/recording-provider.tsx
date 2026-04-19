@@ -236,12 +236,12 @@ export default function RecordProvider({ onMetadataStateChange }: RecordProvider
 
       // STEP 1: Create note in Supabase
       const createdNote = await createNote(noteData)
-      console.log('[RecordingProvider] Note created with ID:', createdNote.id)
+      console.log('[RecordingProvider] Note created with ID:', createdNote.noteID)
 
       // STEP 2: Call FastAPI for AI processing
       try {
-        await processNoteWithAI(createdNote.id)
-        console.log('[RecordingProvider] AI processing initiated for note:', createdNote.id)
+        await processNoteWithAI(createdNote.noteID)
+        console.log('[RecordingProvider] AI processing initiated for note:', createdNote.noteID)
       } catch (aiError) {
         console.error('[RecordingProvider] AI processing failed, but note was created:', aiError)
         // Continue - note is saved even if AI processing fails
@@ -254,7 +254,7 @@ export default function RecordProvider({ onMetadataStateChange }: RecordProvider
       onMetadataStateChange?.(false)
 
       // Redirect to the newly created session
-      router.push(`/sessions/${createdNote.id}`)
+      router.push(`/sessions/${createdNote.noteID}`)
     } catch (error) {
       console.error('[RecordingProvider] Failed to confirm metadata:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
