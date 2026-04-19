@@ -15,9 +15,9 @@ interface ProvidersProps {
 
 export function Providers({ children, defaultOpen }: ProvidersProps) {
   const pathname = usePathname()
-  
-  // Hide sidebar and navbar for auth pages
-  const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/auth/') || pathname === '/signup'
+
+  // Public pages that shouldn't have sidebar or navbar
+  const isPublicPage = pathname === '/' || pathname?.startsWith('/pricing') || pathname?.startsWith('/login') || pathname?.startsWith('/auth/') || pathname === '/signup'
 
   return (
     <AuthProvider>
@@ -28,10 +28,10 @@ export function Providers({ children, defaultOpen }: ProvidersProps) {
         disableTransitionOnChange
       >
         <PatientProvider>
-          {isAuthPage ? (
-            // Auth pages layout - no sidebar or navbar
+          {isPublicPage ? (
+            // Public pages layout - no sidebar or navbar
             <div className="w-full bg-background">
-              <div className="px-4">{children}</div>
+              {children}
             </div>
           ) : (
             // App pages layout - with sidebar and navbar

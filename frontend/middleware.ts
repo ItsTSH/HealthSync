@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/auth/callback', '/auth/complete-profile', '/signup']
+const publicRoutes = ['/', '/login', '/auth/callback', '/auth/complete-profile', '/signup', '/pricing']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -49,10 +49,10 @@ export async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // If no session and trying to access protected route, redirect to login
+  // If no session and trying to access protected route, redirect to landing page
   if (!session) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
