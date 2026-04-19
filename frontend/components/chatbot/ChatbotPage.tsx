@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react"
 import {
-  ChatContainer,
   ChatInput,
   ChatMessage,
   MessageContent,
