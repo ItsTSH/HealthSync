@@ -131,12 +131,12 @@ class PatientLookupService:
             matches = []
             for candidate in candidates:
                 for patient in patients:
-                    confidence = self._fuzzy_match(candidate, patient['name'])
+                    confidence = self._fuzzy_match(candidate, patient['patient_name'])
                     
                     if confidence >= self.CONFIDENCE_THRESHOLD:
                         match = PatientMatch(
-                            name=patient['name'],
-                            patient_id=patient['id'],
+                            name=patient['patient_name'],
+                            patient_id=patient['patient_id'],
                             confidence=confidence,
                             match_type="exact" if confidence >= self.EXACT_MATCH_THRESHOLD else "fuzzy",
                             source="ner_entity",
@@ -144,7 +144,7 @@ class PatientLookupService:
                         )
                         matches.append(match)
                         logger.debug(
-                            f"Patient match: '{candidate}' → '{patient['name']}' "
+                            f"Patient match: '{candidate}' → '{patient['patient_name']}' "
                             f"(confidence: {confidence:.2f})"
                         )
                         break
@@ -231,43 +231,53 @@ class PatientLookupService:
         
         Avoids DB fetch on every query. Cache hit: O(1), miss: RLS-enforced DB query.
         """
-        redis = get_redis_client()
         cache_key = f"user_patients:{user_id}"
         
         # Try cache first
+        redis = None
         try:
-            cached = redis.get(cache_key)
+            redis = await get_redis_client()
+            cached = await redis.get(cache_key)
             if cached:
                 logger.debug(f"Patient list cache hit for user {user_id}")
                 return json.loads(cached)
         except Exception as e:
             logger.warning(f"Redis cache miss: {e}")
         
-        # Fall back to DB (RLS enforced)
+        # Fall back to DB (RLS enforced) - Query patient_reference table
         try:
-            response = self.supabase.table('patients')\
-                .select('id, name, mrn')\
+            response = self.supabase.table('patient_reference')\
+                .select('patient_id, patient_name, patient_token')\
                 .eq('user_id', user_id)\
                 .execute()
             
             patients = response.data or []
             
-            # Cache for 1 hour
-            try:
-                redis.setex(
-                    cache_key,
-                    self.PATIENT_LIST_CACHE_TTL,
-                    json.dumps(patients)
-                )
-                logger.debug(f"Cached {len(patients)} patients for user {user_id}")
-            except Exception as e:
-                logger.warning(f"Failed to cache patient list: {e}")
+            # Cache for 1 hour (only if Redis available)
+            if redis:
+                try:
+                    await redis.setex(
+                        cache_key,
+                        self.PATIENT_LIST_CACHE_TTL,
+                        json.dumps(patients)
+                    )
+                    logger.debug(f"Cached {len(patients)} patients for user {user_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache patient list: {e}")
             
             logger.debug(f"Fetched {len(patients)} patients for user {user_id}")
             return patients
             
         except Exception as e:
-            logger.error(f"Failed to fetch patients: {e}", exc_info=True)
+            error_msg = str(e)
+            if "patient_reference" in error_msg and "Could not find the table" in error_msg:
+                logger.error(
+                    f"❌ Database schema not initialized. "
+                    f"Run SETUP_DATABASE.md to create patient_reference table. "
+                    f"Error: {error_msg}"
+                )
+            else:
+                logger.error(f"Failed to fetch patients: {e}", exc_info=True)
             return []
     
     def _extract_ner_entities(self, query: str) -> List[str]:

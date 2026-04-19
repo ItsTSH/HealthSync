@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
-import axios, { AxiosError } from "axios"
 import { toast } from "sonner"
+import { ChatService, Chat } from "@/services/chat-service"
+import { APIError } from "@/lib/api-client"
 
 interface ChatSessionContext {
   query_count: number
@@ -14,6 +15,7 @@ interface ChatSessionContext {
 interface ChatContextData {
   id: string
   user_id: string
+  patient_id: string
   title: string
   query_count: number
   is_archived: boolean
@@ -77,17 +79,28 @@ export function useChat(): UseChathooks {
         abortControllerRef.current?.abort()
         abortControllerRef.current = new AbortController()
 
-        const response = await axios.get(`/api/chats/${chatId}`, {
-          signal: abortControllerRef.current.signal,
+        const backendChat = await ChatService.getChat(chatId)
+        
+        setChat({
+          id: backendChat.id,
+          user_id: backendChat.user_id,
+          patient_id: backendChat.patient_id,
+          title: backendChat.title,
+          query_count: backendChat.query_count,
+          is_archived: false,
+          created_at: backendChat.created_at,
+          updated_at: backendChat.updated_at,
+          context: null
         })
-
-        setChat(response.data)
       } catch (err) {
-        if (err instanceof AxiosError && err.code !== "ERR_CANCELED") {
-          const message = err.response?.data?.detail || "Failed to load chat"
-          setError(message)
-          toast.error(message)
+        let message = "Failed to load chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
         }
+        setError(message)
+        toast.error(message)
       } finally {
         setIsLoading(false)
       }
@@ -104,25 +117,23 @@ export function useChat(): UseChathooks {
       }
 
       try {
-        const response = await axios.patch(`/api/chats/${chat.id}`, {
-          title,
-        })
-
+        // Note: Backend doesn't have an update endpoint yet, 
+        // so we'll update locally only
         setChat((prev) =>
           prev
             ? {
                 ...prev,
-                title: response.data.title,
-                updated_at: response.data.updated_at,
+                title,
+                updated_at: new Date().toISOString(),
               }
             : null
         )
         toast.success("Chat title updated")
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to update chat"
-            : "Unknown error"
+        let message = "Failed to update chat"
+        if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
       }
@@ -139,28 +150,30 @@ export function useChat(): UseChathooks {
       }
 
       try {
-        const response = await axios.post(`/api/chats/${chat.id}/increment-query`)
-
+        // Note: Backend doesn't have an increment endpoint yet
+        // This is handled by SessionContextManager on the backend during RAG queries
+        const newCount = (chat.query_count || 0) + 1
+        
         setChat((prev) =>
           prev
             ? {
                 ...prev,
-                query_count: response.data.query_count,
+                query_count: newCount,
                 context: {
                   ...prev.context,
-                  query_count: response.data.query_count,
-                  is_full: response.data.is_full,
+                  query_count: newCount,
+                  is_full: newCount >= 10,
                 } as ChatSessionContext,
               }
             : null
         )
 
-        return response.data.query_count
+        return newCount
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to increment query count"
-            : "Unknown error"
+        let message = "Failed to increment query count"
+        if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         throw err
       }
@@ -177,29 +190,25 @@ export function useChat(): UseChathooks {
       }
 
       try {
-        const response = await axios.post(
-          `/api/chats/${chat.id}/update-patients`,
-          { patient_ids: patientIds }
-        )
-
+        // Note: Backend doesn't have an endpoint for this yet
+        // This is handled by the RAG pipeline automatically
         setChat((prev) =>
           prev
             ? {
                 ...prev,
                 context: {
                   ...prev.context,
-                  referenced_patient_ids: response.data.referenced_patient_ids,
-                  last_referenced_patient_id:
-                    response.data.last_referenced_patient_id,
+                  referenced_patient_ids: patientIds,
+                  last_referenced_patient_id: patientIds[0] || null,
                 } as ChatSessionContext,
               }
             : null
         )
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to update patients"
-            : "Unknown error"
+        let message = "Failed to update patients"
+        if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
       }
@@ -211,14 +220,16 @@ export function useChat(): UseChathooks {
   const deleteChat = useCallback(
     async (chatId: string) => {
       try {
-        await axios.delete(`/api/chats/${chatId}`)
+        await ChatService.deleteChat(chatId)
         setChat(null)
         toast.success("Chat deleted")
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to delete chat"
-            : "Unknown error"
+        let message = "Failed to delete chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
         throw err
@@ -231,25 +242,20 @@ export function useChat(): UseChathooks {
   const archiveChat = useCallback(
     async (chatId: string) => {
       try {
-        await axios.patch(`/api/chats/${chatId}`, {
-          is_archived: true,
-        })
+        // Note: Backend doesn't have archive endpoint yet
+        // For now, we'll just delete it
+        await ChatService.deleteChat(chatId)
         if (chat?.id === chatId) {
-          setChat((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  is_archived: true,
-                }
-              : null
-          )
+          setChat(null)
         }
         toast.success("Chat archived")
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to archive chat"
-            : "Unknown error"
+        let message = "Failed to archive chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
         throw err

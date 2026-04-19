@@ -18,7 +18,7 @@ from slowapi.util import get_remote_address
 from schema.chatSchema import (
     ChatCreateRequest, ChatResponse, ChatListResponse, ChatMessageRequest, ChatMessageResponse
 )
-from core.auth import get_current_user
+from core.auth import get_current_user, get_current_user_token
 from core.dependencies import get_supabase
 from services.session_context import SessionContextManager
 from core.redis import get_redis_client
@@ -40,7 +40,8 @@ async def create_chat(
     request: Request,
     chat_request: ChatCreateRequest,
     current_user: str = Depends(get_current_user),
-    supabase=Depends(get_supabase)
+    user_token: str = Depends(get_current_user_token),
+    supabase=Depends(lambda token=Depends(get_current_user_token): get_supabase(token))
 ):
     """
     Create new chat session
@@ -57,6 +58,7 @@ async def create_chat(
         response = supabase.table("chats").insert({
             "id": chat_id,
             "user_id": current_user,
+            "patient_id": chat_request.patient_id,
             "title": chat_request.title or f"Chat {now[:10]}",
             "created_at": now,
             "updated_at": now
@@ -66,17 +68,18 @@ async def create_chat(
             logger.error(f"Failed to create chat for user {current_user}")
             raise HTTPException(status_code=500, detail="Failed to create chat")
         
-        # Initialize session context in Redis
-        await context_manager.load_or_create_context(
+        # Create session context in Redis
+        await context_manager.create_context(
             chat_id=chat_id,
             user_id=current_user
         )
         
-        logger.info(f"Created chat {chat_id} for user {current_user}")
+        logger.info(f"Created chat {chat_id} for user {current_user}, patient {chat_request.patient_id}")
         
         return ChatResponse(
             id=chat_id,
             user_id=current_user,
+            patient_id=chat_request.patient_id,
             title=chat_request.title or f"Chat {now[:10]}",
             query_count=0,
             is_archived=False,
@@ -112,16 +115,19 @@ async def list_chats(
         chats = []
         for chat_data in (response.data or []):
             # Load session context to get query_count
-            context = await context_manager.load_or_create_context(
-                chat_id=chat_data["id"],
-                user_id=current_user
+            context = await context_manager.load_context(
+                chat_id=chat_data["id"]
             )
+            
+            # Use context if available, otherwise use defaults
+            query_count = context.query_count if context else 0
             
             chats.append(ChatResponse(
                 id=chat_data["id"],
                 user_id=chat_data["user_id"],
+                patient_id=chat_data.get("patient_id", ""),
                 title=chat_data.get("title", "Untitled Chat"),
-                query_count=context.query_count,
+                query_count=query_count,
                 is_archived=False,
                 created_at=chat_data["created_at"],
                 updated_at=chat_data["updated_at"]
@@ -164,11 +170,13 @@ async def get_chat(
         
         chat_data = response.data[0]
         
-        # Load session context
-        context = await context_manager.load_or_create_context(
-            chat_id=chat_id,
-            user_id=current_user
-        )
+        # Load session context (create if doesn't exist)
+        context = await context_manager.load_context(chat_id=chat_id)
+        if not context:
+            context = await context_manager.create_context(
+                chat_id=chat_id,
+                user_id=current_user
+            )
         
         logger.info(f"Retrieved chat {chat_id} for user {current_user}")
         

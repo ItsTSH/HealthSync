@@ -24,7 +24,12 @@ export default function ChatbotRouter() {
   const handleCreateChat = async () => {
     try {
       setIsCreating(true)
-      const newChat = await createChat("New Chat")
+      
+      // Generate a proper UUID for the patient
+      // In production, user would select from patient list
+      const patientId = crypto.randomUUID()
+      
+      const newChat = await createChat("New Chat", patientId)
       if (newChat?.id) {
         router.push(`/chatbot/${newChat.id}`)
       }

@@ -70,8 +70,7 @@ export async function createNote(formData: NoteFormData): Promise<Note> {
     }
 
     debug.log('createNote', 'Note created successfully:', data)
-    // Map noteID to id for consistency with Note type
-    return { ...data, id: data.noteID } as Note
+    return data as Note
   } catch (error) {
     debug.error('createNote', 'Error:', error)
     throw error
@@ -111,21 +110,15 @@ export async function fetchAllNotes(
       throw new Error(`Failed to fetch notes: ${error.message}`)
     }
 
-    // Map noteID to id for consistency with Note type
-    const mappedData = (data || []).map((note: any) => ({
-      ...note,
-      id: note.noteID,
-    }))
-
     debug.log('fetchAllNotes', 'Fetched notes:', {
       page,
       pageSize,
-      returned: mappedData?.length || 0,
+      returned: data?.length || 0,
       total: count || 0,
     })
 
     return {
-      notes: mappedData as Note[],
+      notes: (data || []) as Note[],
       total: count || 0,
     }
   } catch (error) {
@@ -175,8 +168,7 @@ export async function fetchNoteById(id: string): Promise<Note | null> {
     // Validate and sanitize data structure to prevent React rendering issues
     try {
       const sanitized = {
-        id: data.noteID || id,
-        noteID: data.noteID,
+        noteID: data.noteID || id,
         user_id: data.user_id || '',
         patientName: String(data.patientName || ''),
         age: data.age ? Number(data.age) : undefined,
@@ -231,14 +223,8 @@ export async function fetchNotesByPatientName(patientName: string): Promise<Note
       throw new Error(`Failed to fetch patient notes: ${error.message}`)
     }
 
-    // Map noteID to id for consistency with Note type
-    const mappedData = (data || []).map((note: any) => ({
-      ...note,
-      id: note.noteID,
-    }))
-
     console.log('[fetchNotesByPatientName] Fetched notes for patient:', patientName)
-    return mappedData as Note[]
+    return data as Note[]
   } catch (error) {
     console.error('[fetchNotesByPatientName] Error:', error)
     throw error
@@ -296,8 +282,7 @@ export async function updateNote(
     }
 
     console.log('[updateNote] Note updated successfully:', id)
-    // Map noteID to id for consistency with Note type
-    return { ...data, id: data.noteID } as Note
+    return data as Note
   } catch (error) {
     console.error('[updateNote] Error:', error)
     throw error
@@ -322,7 +307,6 @@ export async function deleteNote(id: string): Promise<boolean> {
       .from('notes')
       .delete()
       .eq('noteID', id)
-
     if (error) {
       console.error('[deleteNote] Supabase error:', error)
       throw new Error(`Failed to delete note: ${error.message}`)
@@ -488,7 +472,7 @@ export async function retryNoteProcessing(noteId: string): Promise<Note> {
     const { data, error } = await supabase
       .from('notes')
       .update({ status: 'pending', error: null })
-      .eq('id', noteId)
+      .eq('noteID', noteId)
       .select()
       .single()
 

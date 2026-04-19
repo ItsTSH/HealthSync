@@ -30,7 +30,7 @@ from core.config import get_cache_headers
 from core.redis import get_redis_client
 from services.gemini_embeddings import embed_single
 from services.retrieval import retrieve_chunks
-from services.reranking import rerank_chunks
+from services.reranking import rerank
 from services.llm import generate_response, stream_response
 from services.audit import log_rag_query
 from services.query_classifier import QueryClassifier
@@ -135,10 +135,16 @@ async def rag_search_stream(
             # ================================================================
             logger.info("STAGE 0: Loading session context...")
             try:
-                session_context = await session_context_manager.load_or_create_context(
-                    chat_id=chat_id,
-                    user_id=current_user
+                session_context = await session_context_manager.load_context(
+                    chat_id=chat_id
                 )
+                
+                # Create context if doesn't exist
+                if not session_context:
+                    session_context = await session_context_manager.create_context(
+                        chat_id=chat_id,
+                        user_id=current_user
+                    )
                 
                 # Check if chat is full (10/10 queries)
                 if session_context.is_full:
@@ -165,17 +171,28 @@ async def rag_search_stream(
             logger.info("STAGE 1: Patient extraction...")
             queried_patients = []
             selected_patient_id = query_input.patient_id
+            lookup_result = None  # Initialize before try block to avoid UnboundLocalError
             
             try:
-                lookup_result = await patient_lookup_service.extract_and_match(
+                # Convert session context to dict for patient lookup service
+                session_dict = None
+                if session_context:
+                    session_dict = {
+                        "chat_id": session_context.chat_id,
+                        "referenced_patient_ids": session_context.referenced_patient_ids,
+                        "query_count": session_context.query_count,
+                        "conversation_summary": session_context.conversation_summary,
+                    }
+                
+                lookup_result = await patient_lookup_service.extract_patient_names(
                     query=query_text,
                     user_id=current_user,
-                    session_context=session_context
+                    session_context=session_dict
                 )
                 
                 queried_patients = [
                     {
-                        "name": m.patient_name,
+                        "name": m.name,
                         "patient_id": m.patient_id,
                         "confidence": m.confidence,
                         "match_type": m.match_type
@@ -188,6 +205,7 @@ async def rag_search_stream(
             except Exception as e:
                 logger.warning(f"Patient extraction failed: {str(e)}")
                 queried_patients = []
+                lookup_result = None
             
             # ================================================================
             # STAGE 2: Patient Disambiguation
@@ -325,7 +343,7 @@ async def rag_search_stream(
                     }
                     for r in retrieved
                 ]
-                reranked = await rerank_chunks(
+                reranked = await rerank(
                     query=masked_query,
                     chunks=retrieved_dicts,
                     top_k=top_k,
@@ -612,7 +630,7 @@ async def rag_search(
             for r in retrieved
         ]
         
-        reranked = await rerank_chunks(
+        reranked = await rerank(
             query=query_text,
             chunks=retrieved_dicts,
             top_k=top_k,
@@ -1012,7 +1030,7 @@ async def rag_search_stream(
                 ]
                 
                 # Use context_size for final top_k
-                reranked = await rerank_chunks(
+                reranked = await rerank(
                     query=masked_query_text,
                     chunks=retrieved_dicts,
                     top_k=min(context_size, top_k),

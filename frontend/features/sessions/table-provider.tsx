@@ -48,10 +48,10 @@ export default function DataTableProvider() {
 
         // Subscribe to real-time updates filtered by user_id
         const unsubscribe = subscribeToNoteUpdates(userId, (payload) => {
-          console.log('[DataTableProvider] Note updated:', payload.new.id)
+          console.log('[DataTableProvider] Note updated:', payload.new.noteID)
           setData((prev) =>
             prev.map((note) =>
-              note.id === payload.new.id ? payload.new : note
+              note.noteID === payload.new.noteID ? payload.new : note
             )
           )
         })

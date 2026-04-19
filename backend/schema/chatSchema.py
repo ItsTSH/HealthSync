@@ -6,6 +6,7 @@ from datetime import datetime
 
 class ChatCreateRequest(BaseModel):
     """Request to create new chat"""
+    patient_id: str = Field(..., description="UUID of the patient for this chat")
     title: Optional[str] = Field(None, max_length=255)
 
 
@@ -13,6 +14,7 @@ class ChatResponse(BaseModel):
     """Chat detail response"""
     id: str
     user_id: str
+    patient_id: str
     title: str
     query_count: int = 0
     is_archived: bool = False

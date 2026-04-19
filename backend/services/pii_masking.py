@@ -361,3 +361,36 @@ def unmask_text(masked_text: str, unmask_map: Dict[str, str]) -> str:
     service = PIIMaskingService()
     service.unmask_map = unmask_map
     return service.unmask_response(masked_text)
+
+
+# Convenience functions for embedding tasks
+_masker_instance = None
+
+def get_masker() -> PIIMaskingService:
+    """
+    Get singleton masker instance for embedding tasks.
+    
+    Returns:
+        PIIMaskingService instance
+    """
+    global _masker_instance
+    if _masker_instance is None:
+        _masker_instance = PIIMaskingService()
+    return _masker_instance
+
+
+def mask_text(text: str) -> tuple[str, Dict[str, str]]:
+    """
+    Mask PII in text and return masked text + registry.
+    
+    Used by embedding tasks to mask individual chunks.
+    
+    Args:
+        text: Text to mask
+    
+    Returns:
+        Tuple of (masked_text, mask_registry)
+    """
+    service = PIIMaskingService()
+    result = service.mask_note(text)
+    return result.masked_text, service.unmask_map

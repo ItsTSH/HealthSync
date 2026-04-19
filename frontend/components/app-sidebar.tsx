@@ -1,5 +1,5 @@
 "use client"
-import { Calendar, Home, Notebook, User, Users, Mic, Stethoscope, MessageCircle } from "lucide-react"
+import { Calendar, Home, Notebook, User, Users, Mic, Heart, MessageCircle } from "lucide-react"
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -256,8 +256,8 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg"
                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                      <Stethoscope className="size-4" />
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 text-white">
+                      <Heart className="size-4 fill-current" />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">
@@ -334,11 +334,11 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             asChild
                                             className="h-auto py-1.5 px-2"
-                                            onClick={() => router.push(`/chatbot?session=${chat.id}`)}
+                                            onClick={() => router.push(`/chatbot/${chat.id}`)}
                                         >
                                             <button className="flex flex-col items-start gap-0.5 w-full text-left">
                                                 <span className="text-xs font-medium truncate w-full">
-                                                    {chat.title}
+                                                    {chat.title || 'Untitled Chat'}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground">
                                                     {formatDate(chat.timestamp)}

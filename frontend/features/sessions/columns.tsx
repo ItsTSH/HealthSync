@@ -32,8 +32,8 @@ function ActionCell({ note }: { note: Note }) {
   const router = useRouter()
 
   const handleViewSession = () => {
-    if (note.id) {
-      router.push(`/sessions/${note.id}`)
+    if (note.noteID) {
+      router.push(`/sessions/${note.noteID}`)
     }
   }
 
@@ -53,7 +53,7 @@ function ActionCell({ note }: { note: Note }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => navigator.clipboard.writeText(note.id.toString())}
+          onClick={() => navigator.clipboard.writeText(note.noteID.toString())}
         >
           Copy note ID
         </DropdownMenuItem>

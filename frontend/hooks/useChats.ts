@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
-import axios, { AxiosError } from "axios"
 import { toast } from "sonner"
+import { ChatService, Chat } from "@/services/chat-service"
+import { APIError } from "@/lib/api-client"
 
 interface ChatItem {
   id: string
@@ -22,7 +23,7 @@ interface UseChatsHook {
 
   // Actions
   loadChats: (forceRefresh?: boolean) => Promise<void>
-  createChat: (title?: string) => Promise<ChatItem | null>
+  createChat: (title?: string, patientId?: string) => Promise<ChatItem | null>
   deleteChat: (chatId: string) => Promise<void>
   archiveChat: (chatId: string) => Promise<void>
   searchChats: (query: string) => void
@@ -63,7 +64,7 @@ export function useChats(): UseChatsHook {
   // Cache duration in milliseconds (5 minutes)
   const CACHE_DURATION = 5 * 60 * 1000
 
-  // Load chats from API
+  // Load chats from backend API
   const loadChats = useCallback(
     async (forceRefresh = false) => {
       try {
@@ -81,18 +82,34 @@ export function useChats(): UseChatsHook {
         abortControllerRef.current?.abort()
         abortControllerRef.current = new AbortController()
 
-        const response = await axios.get("/api/chats", {
-          signal: abortControllerRef.current.signal,
-        })
+        // Call backend via ChatService
+        const backendChats = await ChatService.listChats()
+        
+        // Convert Chat to ChatItem
+        const chatItems: ChatItem[] = backendChats.map(chat => ({
+          id: chat.id,
+          title: chat.title,
+          created_at: chat.created_at,
+          updated_at: chat.updated_at,
+          query_count: chat.query_count,
+          is_archived: chat.status === "archived",
+        }))
 
-        setChats(response.data.chats || [])
+        setChats(chatItems)
         cacheTimeRef.current = now
       } catch (err) {
-        if (err instanceof AxiosError && err.code !== "ERR_CANCELED") {
-          const message = err.response?.data?.detail || "Failed to load chats"
+        if (err instanceof APIError) {
+          const message = err.message || "Failed to load chats"
           setError(message)
           toast.error(message)
+        } else if (err instanceof Error) {
+          setError(err.message)
+          toast.error(err.message)
+        } else {
+          setError("Failed to load chats")
+          toast.error("Failed to load chats")
         }
+        console.error("Error loading chats:", err)
       } finally {
         setIsLoading(false)
       }
@@ -102,17 +119,23 @@ export function useChats(): UseChatsHook {
 
   // Create new chat
   const createChat = useCallback(
-    async (title?: string): Promise<ChatItem | null> => {
+    async (title?: string, patientId?: string): Promise<ChatItem | null> => {
       try {
-        const response = await axios.post("/api/chats", {
-          title: title || undefined,
+        if (!patientId) {
+          toast.error("Patient ID is required to create a chat")
+          return null
+        }
+
+        const backendChat = await ChatService.createChat({
+          patient_id: patientId,
+          title: title || "New Chat",
         })
 
         const newChat: ChatItem = {
-          id: response.data.id,
-          title: response.data.title,
-          created_at: response.data.created_at,
-          updated_at: response.data.updated_at,
+          id: backendChat.id,
+          title: backendChat.title,
+          created_at: backendChat.created_at,
+          updated_at: backendChat.updated_at,
           query_count: 0,
         }
 
@@ -121,10 +144,12 @@ export function useChats(): UseChatsHook {
 
         return newChat
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to create chat"
-            : "Unknown error"
+        let message = "Failed to create chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
         return null
@@ -137,15 +162,17 @@ export function useChats(): UseChatsHook {
   const deleteChat = useCallback(
     async (chatId: string) => {
       try {
-        await axios.delete(`/api/chats/${chatId}`)
+        await ChatService.deleteChat(chatId)
 
         setChats((prev) => prev.filter((c) => c.id !== chatId))
         toast.success("Chat deleted")
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to delete chat"
-            : "Unknown error"
+        let message = "Failed to delete chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
         throw err
@@ -158,9 +185,7 @@ export function useChats(): UseChatsHook {
   const archiveChat = useCallback(
     async (chatId: string) => {
       try {
-        await axios.patch(`/api/chats/${chatId}`, {
-          is_archived: true,
-        })
+        await ChatService.archiveChat(chatId)
 
         setChats((prev) =>
           prev.map((c) =>
@@ -174,10 +199,12 @@ export function useChats(): UseChatsHook {
         )
         toast.success("Chat archived")
       } catch (err) {
-        const message =
-          err instanceof AxiosError
-            ? err.response?.data?.detail || "Failed to archive chat"
-            : "Unknown error"
+        let message = "Failed to archive chat"
+        if (err instanceof APIError) {
+          message = err.message
+        } else if (err instanceof Error) {
+          message = err.message
+        }
         setError(message)
         toast.error(message)
         throw err
@@ -211,7 +238,7 @@ export function useChats(): UseChatsHook {
   // Load chats on mount
   useEffect(() => {
     loadChats()
-  }, []) // Only on mount
+  }, [loadChats])
 
   // Cleanup on unmount
   useEffect(() => {
