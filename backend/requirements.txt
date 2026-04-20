@@ -124,7 +124,7 @@ nest-asyncio==1.6.0
 networkx==3.5
 numpy==2.3.4
 oauthlib==3.3.1
-onnxruntime==1.23.2
+onnxruntime==1.24.4
 openai==2.31.0
 openapi-core==0.19.5
 openapi-schema-validator==0.6.3
