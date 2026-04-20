@@ -172,7 +172,7 @@ pylibsrtp==1.0.0
 PyMeta3==0.5.1
 pyOpenSSL==26.0.0
 pyparsing==3.3.2
-PyPika==0.48.10
+PyPika==0.51.1
 pyproject_hooks==1.2.0
 pyreadline3==3.5.4
 pyroaring==1.0.4
