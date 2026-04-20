@@ -1,4 +1,4 @@
-# HealthSync � - Voice-Based Medical Documentation Platform
+# HealthSync - Voice-Based Medical Documentation Platform
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009485?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
@@ -50,22 +50,22 @@ HealthSync enables clinicians to **simply speak** during patient consultations. 
 │                        │                                        │
 │                        ↓                                        │
 │                   🏷️ Extract          ↓                         │
-│                   Structured Data  Metadata Store              │
+│                   Structured Data  Metadata Store               │
 │                   (Gemini)                                      │
 │                        │                                        │
 │                        ↓                                        │
 │  📝 Documentation ← Formatted         ↓                         │
-│  Clinical Note      Medical Record   Clinical Notes            │
-│                                        Table                   │
+│  Clinical Note      Medical Record   Clinical Notes             │
+│                                        Table                    │
 │                        │                                        │
 │                        ↓                                        │
-│  🔍 Search      ← Indexed &          ↓                         │
-│  via RAG          Searchable      Vector Embeddings            │
-│                   Knowledge Base     (pgvector)                │
-│                                        │                       │
+│  🔍 Search      ← Indexed &          ↓                          │
+│  via RAG          Searchable      Vector Embeddings             │
+│                   Knowledge Base     (pgvector)                 │
+│                                        │                        │
 │                        │                                        │
-│  💬 Chat with      ← LLM Synthesis ← Retrieved Context         │
-│  AI Assistant        + Citations                               │
+│  💬 Chat with      ← LLM Synthesis ← Retrieved Context          │
+│  AI Assistant        + Citations                                │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -249,9 +249,7 @@ This note is:
 
 ---
 
-## 🔍 RAG Search on Medical Documentation (Supporting Feature)
-
-## 🔍 RAG Search on Medical Documentation (Supporting Feature)
+## 🔍 RAG Search on Medical Documentation
 
 Once all voice-recorded sessions are transcribed, extracted, and indexed, clinicians can search across the entire knowledge base:
 
